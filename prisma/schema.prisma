@@ -1,0 +1,111 @@
+// Prisma schema for Code Battle - Round 1 MCQ demo
+// Designed so later rounds / colleges / years can be added without
+// changing the shape of what already exists (see docs/architecture.md).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// A single row here represents one running contest instance
+// (e.g. "Code Battle 2026"). Everything is scoped to a contest
+// so the same schema supports multiple years/colleges later.
+model Contest {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  round1DurationSeconds Int @default(1200)
+
+  round1StartAt DateTime?
+  round1EndAt   DateTime?
+  round1Active  Boolean   @default(false)
+
+  participants Participant[]
+  questions    Question[]
+}
+
+model Participant {
+  id          String   @id @default(cuid())
+  contestId   String
+  contest     Contest  @relation(fields: [contestId], references: [id])
+  name        String
+  accessCode  String   @unique // login credential handed out to the participant
+  disqualified Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  submissions Submission[]
+  auditEvents AuditEvent[]
+
+  @@index([contestId])
+}
+
+enum Difficulty {
+  EASY
+  HARD
+}
+
+model Question {
+  id         String     @id @default(cuid())
+  contestId  String
+  contest    Contest    @relation(fields: [contestId], references: [id])
+  text       String
+  optionA    String
+  optionB    String
+  optionC    String
+  optionD    String
+  // Correct option is NEVER sent to any participant-facing API.
+  correct    String // "A" | "B" | "C" | "D"
+  difficulty Difficulty
+  order      Int
+
+  answers Answer[]
+
+  @@index([contestId])
+}
+
+// One row per participant per Round 1 attempt.
+model Submission {
+  id            String   @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id])
+  round         Int // 1, 2, or 3 - only 1 is used in this demo
+  submittedAt   DateTime @default(now())
+  serverReceivedAt DateTime @default(now())
+
+  correctnessScore Float @default(0)
+  timeScore        Float @default(0)
+  totalScore       Float @default(0)
+
+  answers Answer[]
+
+  @@unique([participantId, round]) // one submission per participant per round
+}
+
+model Answer {
+  id            String     @id @default(cuid())
+  submissionId  String
+  submission    Submission @relation(fields: [submissionId], references: [id])
+  questionId    String
+  question      Question   @relation(fields: [questionId], references: [id])
+  selectedOption String    // "A" | "B" | "C" | "D"
+  isCorrect     Boolean
+
+  @@unique([submissionId, questionId])
+}
+
+// Anti-cheat / audit trail. Never triggers auto-disqualification by itself.
+model AuditEvent {
+  id            String      @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id])
+  type          String // TAB_SWITCH, WINDOW_BLUR, FULLSCREEN_EXIT, COPY, PASTE, LOGIN, LOGOUT, SUBMISSION
+  detail        String?
+  createdAt     DateTime    @default(now())
+
+  @@index([participantId])
+}
