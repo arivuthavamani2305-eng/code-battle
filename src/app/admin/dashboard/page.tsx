@@ -579,7 +579,7 @@ function Round2Section({ rows, onGraded }: { rows: Round2Row[] | null; onGraded:
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-semibold">Round 2 — Bug Warfare (30 marks: 10 Bug ID + 10 Fix + 5 Output + 5 Time)</h2>
+        <h2 className="font-semibold">Round 2 — Bug Warfare (30 marks: 10 Bug Identification + 10 Fix + 5 Output + 5 Time)</h2>
         <button
           disabled={!rows || rows.length === 0}
           onClick={() =>
@@ -588,7 +588,7 @@ function Round2Section({ rows, onGraded }: { rows: Round2Row[] | null; onGraded:
               (rows ?? []).map((r) => ({
                 Name: r.participantName,
                 AccessCode: r.accessCode,
-                "BugID/10": r.criteriaScores.bugIdentification ?? "",
+                "Bug Identification/10": r.criteriaScores.bugIdentification ?? "",
                 "Fix/10": r.criteriaScores.correctnessOfFix ?? "",
                 "Output/5": r.criteriaScores.expectedOutput,
                 "Time/5": r.criteriaScores.timeEfficiency,
@@ -607,7 +607,7 @@ function Round2Section({ rows, onGraded }: { rows: Round2Row[] | null; onGraded:
           <thead className="text-left text-slate-500">
             <tr>
               <th className="py-1">Name</th>
-              <th className="py-1 w-20">Bug ID /10</th>
+              <th className="py-1 w-20">Bug Identification /10</th>
               <th className="py-1 w-20">Fix /10</th>
               <th className="py-1">Output /5</th>
               <th className="py-1">Time /5</th>
