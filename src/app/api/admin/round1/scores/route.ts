@@ -9,7 +9,7 @@ export async function GET() {
   }
 
   const submissions = await prisma.submission.findMany({
-    where: { round: 1 },
+    where: { round: 1, participant: { disqualified: false } },
     include: { participant: true },
     orderBy: { totalScore: "desc" },
   });

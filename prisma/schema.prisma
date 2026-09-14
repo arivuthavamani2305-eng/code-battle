@@ -25,8 +25,22 @@ model Contest {
   round1EndAt   DateTime?
   round1Active  Boolean   @default(false)
 
-  participants Participant[]
-  questions    Question[]
+  round2DurationSeconds Int @default(1800)
+
+  round2StartAt DateTime?
+  round2EndAt   DateTime?
+  round2Active  Boolean   @default(false)
+
+  round3DurationSeconds Int @default(2700)
+
+  round3StartAt DateTime?
+  round3EndAt   DateTime?
+  round3Active  Boolean   @default(false)
+
+  participants   Participant[]
+  questions      Question[]
+  bugQuestions   BugQuestion[]
+  codingProblems CodingProblem[]
 }
 
 model Participant {
@@ -68,20 +82,35 @@ model Question {
   @@index([contestId])
 }
 
-// One row per participant per Round 1 attempt.
+// One row per participant per round attempt (Round 1, 2, or 3).
 model Submission {
   id            String   @id @default(cuid())
   participantId String
   participant   Participant @relation(fields: [participantId], references: [id])
-  round         Int // 1, 2, or 3 - only 1 is used in this demo
+  round         Int // 1, 2, or 3
   submittedAt   DateTime @default(now())
   serverReceivedAt DateTime @default(now())
 
+  // Round 1 (MCQ) uses these two directly, per the original design.
   correctnessScore Float @default(0)
   timeScore        Float @default(0)
   totalScore       Float @default(0)
 
-  answers Answer[]
+  // Rounds 2 & 3: raw submitted content (fixed code / solution code / notes),
+  // kept so the admin can review and grade the subjective rubric criteria.
+  payload Json?
+
+  // Rounds 2 & 3: per-criterion marks (auto-computed pieces + admin-entered
+  // pieces), keyed by rubric criterion name, e.g.
+  // {"bugIdentification":8,"correctnessOfFix":9,"expectedOutput":5,"timeEfficiency":4.2}
+  criteriaScores Json?
+
+  // True once every criterion required to be manually graded has a mark.
+  // Round 1 is fully automatic so it is graded=true as soon as it's scored.
+  graded   Boolean   @default(true)
+  gradedAt DateTime?
+
+  answers Answer[] // Round 1 only
 
   @@unique([participantId, round]) // one submission per participant per round
 }
@@ -96,6 +125,43 @@ model Answer {
   isCorrect     Boolean
 
   @@unique([submissionId, questionId])
+}
+
+// Round 2 - Bug Warfare: a snippet containing a deliberate bug.
+// Only JavaScript snippets can be auto-executed for the "Expected Output"
+// criterion (see src/lib/judge.ts); other languages are still fully
+// supported, they just skip auto-checking of output and rely on the
+// admin's manual "Correctness of Fix" mark instead.
+model BugQuestion {
+  id             String   @id @default(cuid())
+  contestId      String
+  contest        Contest  @relation(fields: [contestId], references: [id])
+  title          String
+  language       String   @default("javascript")
+  buggyCode      String
+  // What running the CORRECTED code should print (compared against
+  // console.log output, trimmed). Only used for auto-checking JS.
+  expectedOutput String
+  hint           String?
+  order          Int
+
+  @@index([contestId])
+}
+
+// Round 3 - Code War: one coding problem with visible + hidden test cases.
+// testCases shape: [{ "args": [...jsonValues], "expectedOutput": jsonValue, "hidden": boolean }]
+// Participant code must define a function called `solve` (see src/lib/judge.ts).
+model CodingProblem {
+  id          String  @id @default(cuid())
+  contestId   String
+  contest     Contest @relation(fields: [contestId], references: [id])
+  title       String
+  statement   String
+  starterCode String  @default("function solve() {\n  // your code here\n}")
+  testCases   Json
+  order       Int
+
+  @@index([contestId])
 }
 
 // Anti-cheat / audit trail. Never triggers auto-disqualification by itself.

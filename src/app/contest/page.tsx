@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FocusGuard } from "@/components/FocusGuard";
 
 type Question = {
   id: string;
@@ -41,6 +42,7 @@ export default function ContestPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
   const submittedRef = useRef(false);
 
   const loadStatus = useCallback(async () => {
@@ -60,8 +62,13 @@ export default function ContestPage() {
     if (res.ok) {
       const data = await res.json();
       setQuestions(data.questions);
+      return true;
     }
-  }, []);
+    if (res.status === 403) {
+      await loadStatus();
+    }
+    return false;
+  }, [loadStatus]);
 
   // Poll round status every few seconds while waiting / during the round.
   useEffect(() => {
@@ -154,6 +161,10 @@ export default function ContestPage() {
     }
   }
 
+  function openSubmitConfirmation() {
+    setShowSubmitConfirmation(true);
+  }
+
   if (!status) {
     return <Centered>Loading contest status...</Centered>;
   }
@@ -170,6 +181,9 @@ export default function ContestPage() {
           <p className="text-slate-400 text-sm">
             Your answers have been recorded. Scores are released by the admin after the round closes.
           </p>
+          <a href="/round2" className="inline-block text-sm text-indigo-400 underline hover:text-indigo-300">
+            Go to Round 2 (once the admin starts it) →
+          </a>
         </div>
       </Centered>
     );
@@ -185,6 +199,7 @@ export default function ContestPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
+      <FocusGuard active={status.round1Active} />
       <header className="mb-6 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
         <h1 className="font-semibold">Round 1 — Code Unlock</h1>
         <TimerBadge seconds={remainingSeconds} />
@@ -234,14 +249,58 @@ export default function ContestPage() {
 
       <div className="sticky bottom-4 mt-6 flex justify-end">
         <button
-          onClick={handleSubmit}
+          onClick={openSubmitConfirmation}
           disabled={submitting}
           className="rounded-lg bg-indigo-600 px-6 py-2.5 font-medium shadow-lg transition hover:bg-indigo-500 disabled:opacity-50"
         >
           {submitting ? "Submitting..." : "Submit Round 1"}
         </button>
       </div>
+
+      {showSubmitConfirmation && (
+        <SubmitConfirmation
+          unanswered={questions.filter((q) => !answers[q.id]).map((q, index) => `Question ${index + 1}`)}
+          onCancel={() => setShowSubmitConfirmation(false)}
+          onConfirm={() => {
+            setShowSubmitConfirmation(false);
+            handleSubmit();
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+function SubmitConfirmation({
+  unanswered,
+  onCancel,
+  onConfirm,
+}: {
+  unanswered: string[];
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-xl">
+        <h2 className="text-lg font-semibold">Confirm submission</h2>
+        {unanswered.length > 0 ? (
+          <>
+            <p className="mt-2 text-sm text-slate-300">These questions are unanswered:</p>
+            <ul className="mt-2 list-inside list-disc text-sm text-amber-300">
+              {unanswered.map((question) => <li key={question}>{question}</li>)}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-2 text-sm text-slate-300">All questions have been answered.</p>
+        )}
+        <p className="mt-4 text-sm text-slate-300">Are you sure you want to submit?</p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button onClick={onCancel} className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800">Go back</button>
+          <button onClick={onConfirm} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500">Submit anyway</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -258,5 +317,9 @@ function TimerBadge({ seconds }: { seconds: number | null }) {
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
-  return <main className="flex min-h-screen items-center justify-center px-4 text-slate-300">{children}</main>;
+  return (
+    <main className="state-shell flex min-h-screen items-center justify-center px-4 text-center text-slate-300">
+      <div className="state-card">{children}</div>
+    </main>
+  );
 }

@@ -1,9 +1,19 @@
-# Code Battle — Round 1 Demo
+# Code Battle — Full 3-Round Platform
 
-A working demo of Round 1 (Code Unlock — MCQ) for the Code Battle platform:
-participant login, server-authoritative timer, 15 questions (7 easy / 8 hard),
-server-side scoring, and an admin dashboard to start/stop the round and view
-results. Built to be deployed live in under 30 minutes on free hosting.
+A working demo of all three Code Battle rounds:
+- **Round 1 — Code Unlock (MCQ):** 15 questions, server-side scoring, 20 marks.
+- **Round 2 — Bug Warfare:** participants fix buggy JS snippets; output is
+  auto-checked against the expected result, 30 marks.
+- **Round 3 — Code War:** participants write a `solve()` function, run it
+  against sample tests, then submit for full (visible + hidden) test-case
+  judging, 50 marks.
+
+Every round has a server-authoritative timer, an admin dashboard to
+start/stop each round, and per-rubric scoring. Rounds 2 and 3 combine
+auto-computed marks (output/test-case correctness, time efficiency) with
+admin-entered marks for the subjective rubric criteria (bug identification,
+correctness of fix, logic & algorithm, code quality, etc.) — see
+`src/lib/scoring.ts` for the exact rubric breakdown.
 
 **Stack:** Next.js (React + TypeScript, App Router, API routes) + PostgreSQL
 (Prisma) — one deployable app, no separate backend server needed.
@@ -66,8 +76,17 @@ git push -u origin main
      https://generate-secret.vercel.app/32 or run `openssl rand -base64 32`)
    - `ADMIN_PASSWORD` → a password you choose for the admin dashboard
    - `ROUND1_DURATION_SECONDS` → e.g. `1200` for 20 minutes
+   - `ROUND2_DURATION_SECONDS` → optional, e.g. `1800` for 30 minutes
+     (defaults to 1800 if not set)
+   - `ROUND3_DURATION_SECONDS` → optional, e.g. `2700` for 45 minutes
+     (defaults to 2700 if not set)
 4. Click **Deploy**. Vercel will run `npm install` and `npm run build`
    (which also runs `prisma generate`) automatically.
+
+This deployment is Vercel-compatible because it uses Next.js serverless API
+routes, PostgreSQL, Prisma, and the JavaScript judge. Do not install a local
+JDK or Docker dependency inside a Vercel function. Java auto-grading requires
+an external isolated judge service called over HTTPS.
 
 ---
 
@@ -82,8 +101,9 @@ npx prisma migrate deploy
 npm run seed
 ```
 
-This creates the tables and inserts the 15 questions + 3 demo participants
-into the live database Vercel is using.
+This creates the tables and inserts the 15 MCQs, 4 bug-fixing questions,
+1 coding problem, and 3 demo participants into the live database Vercel
+is using.
 
 ---
 
@@ -92,30 +112,91 @@ into the live database Vercel is using.
 - Participant site: `https://<your-project>.vercel.app/`
 - Admin dashboard: `https://<your-project>.vercel.app/admin`
 
-Log in to `/admin` with the `ADMIN_PASSWORD` you set, click **Start Round 1**,
-then log participants in with their access codes from a different
-browser/incognito window to try it end to end.
+Log in to `/admin` with the `ADMIN_PASSWORD` you set. The round buttons at
+the top start/stop each round independently:
+
+1. Click **Start R1**, then log participants in with their access codes
+   (from a different browser/incognito window) to try Round 1.
+2. Once a participant submits Round 1, they'll see a link to Round 2 — it
+   stays locked until you click **Start R2**.
+3. Same for Round 3 after Round 2 is submitted — click **Start R3**.
+
+Scores for Round 1 are fully automatic. For Rounds 2 and 3, scroll down on
+the admin dashboard: the auto-computed marks (output match / test pass
+rate / time efficiency) show immediately, and you enter the remaining
+rubric marks (bug identification, correctness of fix, logic & algorithm,
+code quality, etc.) directly in the table — click **Review** to see the
+participant's actual code/explanation before marking, then **Save**. The
+total updates as soon as you save.
 
 To add real participants for your event, use the "Add" form in the admin
 Participants panel — it generates a unique access code for each one.
 
 ---
 
-## What's intentionally NOT in this demo
+## How Round 2 and Round 3 auto-grading works
 
-Per your original spec, this covers Round 1 only. Not included yet:
-Round 2 (Bug Warfare), Round 3 (Code War) with the isolated Docker code
-judge, full anti-cheat scoring/disqualification workflow, multi-contest
-admin config UI, and rate limiting. The architecture (server-authoritative
-timers, no-answers-in-API, admin-only score visibility, audit event log)
-is already in place so these can be added as separate phases without
-reworking what exists — see the original phased plan in your requirements
-doc (Phases 2–10).
+Both rounds run participant-submitted JavaScript through a sandboxed judge
+(`src/lib/judge.ts`, built on Node's built-in `vm` module with a timeout —
+no extra dependencies needed). This is enough isolation for a supervised
+contest with pre-registered participants, but it is **not** a substitute
+for a fully isolated container/VM sandbox (Docker, Firecracker, gVisor) if
+this were ever opened to untrusted public submissions at scale.
+
+- **Round 2:** each bug question has one JS snippet with a known
+  `expectedOutput`. The participant edits it; on submit, the fixed code
+  runs server-side and its `console.log` output is compared to
+  `expectedOutput` (worth 5 of the 30 marks). A "Test my fix" button gives
+  the same check pre-submission without revealing the expected output text.
+- **Round 3:** each problem defines `testCases` (visible + hidden) as
+  `{ args, expectedOutput }` pairs. Participant code must define
+  `function solve(...)`. Visible cases can be run anytime via "Run sample
+  tests"; on final submit, both visible and hidden cases run server-side
+  and the pass rate becomes the 15-mark "Correctness & Test Cases" score.
+  Hidden test case inputs/outputs are never sent to the client.
+
+To add more bug questions or coding problems, edit `BUG_QUESTIONS` /
+`CODING_PROBLEMS` in `prisma/seed.ts` (each one there was verified against
+the actual judge before being added) and re-run `npm run seed`, or insert
+rows directly via `prisma.bugQuestion.create` / `prisma.codingProblem.create`.
+
+---
+
+## Contest rules and enforcement
+
+Participants acknowledge the penalty and disqualification rules before
+entering. The browser records tab switches, focus changes, copy/paste
+attempts, and fullscreen exits as audit events. These events provide review
+evidence but cannot guarantee browser-level prevention of external websites,
+other devices, screenshots, or collaboration.
+
+Admins can open a participant's audit history in the dashboard and
+disqualify or reinstate the participant with a reason. Disqualified
+participants are blocked from contest APIs and excluded from score feeds and
+the overall leaderboard. Organizer review is still required for behavior a
+browser cannot reliably observe.
+
+## What's intentionally simplified in this build
+
+- Only JavaScript is auto-executed/auto-graded. Java questions can be added
+  through the existing `BugQuestion.language` field and are accepted for
+  manual admin grading, but Java execution requires an external isolated
+  judge service. A JDK cannot be safely or reliably installed inside a Vercel
+  serverless function.
+- Round 2 and Round 3 rubric criteria that require human judgment (bug
+  identification, correctness of fix, logic & algorithm quality, code
+  quality, time/space complexity analysis) are deliberately left to the
+  admin to grade — no attempt is made to auto-score code quality or
+  algorithmic reasoning, since that would be unreliable.
+- Automatic disqualification thresholds and rate limiting are not enabled by
+  default. Audit events remain reviewable so organizers can apply the rules
+  consistently and record a reason for each decision.
 
 ## Security notes for this demo
-- Correct MCQ answers are never included in any participant-facing API response.
+- Correct MCQ answers, bug-fix expected outputs, and hidden test cases are
+  never included in any participant-facing API response.
 - The server's clock — not the browser — decides whether a submission is
-  accepted; the on-screen timer is cosmetic only.
+  accepted for every round; the on-screen timer is cosmetic only.
 - Sessions are signed JWTs in httpOnly cookies; admin and participant roles
   are checked on every API route.
 - No secrets are hardcoded — everything sensitive comes from environment

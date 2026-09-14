@@ -10,7 +10,10 @@ export async function GET() {
 
   const participant = await prisma.participant.findUnique({
     where: { id: session.sub },
-    include: { contest: true, submissions: { where: { round: 1 } } },
+    include: {
+      contest: true,
+      submissions: { where: { round: { in: [2, 3] } } },
+    },
   });
 
   if (!participant) {
@@ -20,20 +23,16 @@ export async function GET() {
   const contest = participant.contest;
   const now = new Date();
 
-  const hasSubmitted = participant.submissions.length > 0;
-  const round1Active =
-    contest.round1Active &&
-    !!contest.round1StartAt &&
-    !!contest.round1EndAt &&
-    now >= contest.round1StartAt &&
-    now <= contest.round1EndAt;
+  const round2Submitted = participant.submissions.some((s) => s.round === 2);
+  const hasSubmitted = participant.submissions.some((s) => s.round === 3);
 
   return NextResponse.json({
     serverTime: now.toISOString(),
-    round1Active,
-    round1StartAt: contest.round1StartAt,
-    round1EndAt: contest.round1EndAt,
-    round1DurationSeconds: contest.round1DurationSeconds,
+    round3Active: contest.round3Active,
+    round3StartAt: contest.round3StartAt,
+    round3EndAt: contest.round3EndAt,
+    round3DurationSeconds: contest.round3DurationSeconds,
+    round2Submitted,
     hasSubmitted,
     disqualified: participant.disqualified,
   });
