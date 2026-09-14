@@ -120,11 +120,11 @@ export default function AdminDashboardPage() {
     return () => clearInterval(interval);
   }, [loadAll]);
 
-  async function callAdminAction(url: string) {
+  async function callAdminAction(url: string, method = "POST") {
     setBusy(true);
     setMessage(null);
     try {
-      const res = await fetch(url, { method: "POST" });
+      const res = await fetch(url, { method });
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error ?? "Action failed.");
@@ -150,6 +150,14 @@ export default function AdminDashboardPage() {
     );
     if (!confirmed) return;
     await callAdminAction("/api/admin/contest/reset");
+  }
+
+  async function removeParticipant(participant: Participant) {
+    const confirmed = window.confirm(
+      `Remove ${participant.name} permanently? This deletes their submissions, scores, answers, and audit history.`
+    );
+    if (!confirmed) return;
+    await callAdminAction(`/api/admin/participants/${participant.id}`, "DELETE");
   }
 
   async function addParticipant(e: React.FormEvent) {
@@ -325,6 +333,13 @@ export default function AdminDashboardPage() {
                         className="rounded bg-slate-700 px-2 py-1 text-xs hover:bg-slate-600 disabled:opacity-50"
                       >
                         {p.disqualified ? "Reinstate" : "Disqualify"}
+                      </button>
+                      <button
+                        disabled={busy || contestStatus?.round1.active || contestStatus?.round2.active || contestStatus?.round3.active}
+                        onClick={() => removeParticipant(p)}
+                        className="rounded bg-red-800 px-2 py-1 text-xs hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Remove
                       </button>
                     </td>
                   </tr>

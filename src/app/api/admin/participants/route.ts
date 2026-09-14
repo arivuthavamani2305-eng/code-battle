@@ -52,3 +52,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ id: participant.id, name: participant.name, accessCode: participant.accessCode });
 }
+
