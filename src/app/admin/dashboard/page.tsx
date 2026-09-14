@@ -622,7 +622,7 @@ function Round2Section({ rows, onGraded }: { rows: Round2Row[] | null; onGraded:
           <thead className="text-left text-slate-500">
             <tr>
               <th className="py-1">Name</th>
-              <th className="py-1 w-20">Bug Identification /10</th>
+              <th className="py-1 w-28 whitespace-nowrap">Bug Identify /10</th>
               <th className="py-1 w-20">Fix /10</th>
               <th className="py-1">Output /5</th>
               <th className="py-1">Time /5</th>
