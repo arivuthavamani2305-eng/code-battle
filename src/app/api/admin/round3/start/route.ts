@@ -13,6 +13,10 @@ export async function POST() {
     return NextResponse.json({ error: "No contest configured." }, { status: 404 });
   }
 
+  if (!contest.round2StartAt || contest.round2Active || !contest.round2EndAt) {
+    return NextResponse.json({ error: "Complete Round 2 before starting Round 3." }, { status: 409 });
+  }
+
   const now = new Date();
   const endAt = new Date(now.getTime() + contest.round3DurationSeconds * 1000);
 

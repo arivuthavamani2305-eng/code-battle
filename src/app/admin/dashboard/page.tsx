@@ -236,6 +236,8 @@ export default function AdminDashboardPage() {
             const rs = contestStatus?.[key];
             const isActive = rs?.active ?? false;
             const hasEnded = !isActive && !!rs?.endAt;
+            const previousRound = round > 1 ? contestStatus?.[`round${round - 1}` as "round1" | "round2"] : null;
+            const canStart = round === 1 || (!!previousRound?.startAt && !previousRound.active && !!previousRound.endAt);
             return (
               <div key={round} className="flex items-center gap-1.5">
                 <span
@@ -250,9 +252,9 @@ export default function AdminDashboardPage() {
                   R{round}: {isActive ? "● Active" : hasEnded ? "Ended" : "Not started"}
                 </span>
                 <button
-                  disabled={busy || isActive}
+                  disabled={busy || isActive || !canStart}
                   onClick={() => callAdminAction(`/api/admin/round${round}/start`)}
-                  title={isActive ? `Round ${round} is already running` : `Start Round ${round}`}
+                  title={isActive ? `Round ${round} is already running` : !canStart ? `Complete Round ${round - 1} first` : `Start Round ${round}`}
                   className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-600"
                 >
                   Start R{round}
