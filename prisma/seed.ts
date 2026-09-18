@@ -141,27 +141,15 @@ const HARD_QUESTIONS = [
 // produce expectedOutput, and a correct fix does.
 const BUG_QUESTIONS = [
   {
-    title: "Off-by-one in a sum loop",
+    title: "Fibonacci with a wrong base case",
     language: "javascript",
-    buggyCode: `function sumTo(n) {
-  let total = 0;
-  for (let i = 0; i < n; i++) { total += i; } // this loop stops one short
-  return total;
+    buggyCode: `function fib(n) {
+  if (n <= 1) return 0; // fib(1) shouldn't be 0
+  return fib(n - 1) + fib(n - 2);
 }
-console.log(sumTo(5));`,
-    expectedOutput: "15",
-    hint: "Should the sum of 1..5 include 5 itself?",
-  },
-  {
-    title: "Assignment instead of comparison",
-    language: "javascript",
-    buggyCode: `function isAdult(age) {
-  if (age = 18) { return true; } // = vs ==/>= ?
-  return age >= 18;
-}
-console.log(isAdult(16));`,
-    expectedOutput: "false",
-    hint: "Look closely at the if-condition operator.",
+console.log(fib(7));`,
+    expectedOutput: "13",
+    hint: "What should fib(0) and fib(1) actually return?",
   },
   {
     title: "String reversal that doesn't reverse",
@@ -174,15 +162,15 @@ console.log(reverse("battle"));`,
     hint: "You'll need to split, reverse, and join.",
   },
   {
-    title: "Fibonacci with a wrong base case",
+    title: "Assignment instead of comparison",
     language: "javascript",
-    buggyCode: `function fib(n) {
-  if (n <= 1) return 0; // fib(1) shouldn't be 0
-  return fib(n - 1) + fib(n - 2);
+    buggyCode: `function isAdult(age) {
+  if (age = 18) { return true; } // = vs ==/>= ?
+  return age >= 18;
 }
-console.log(fib(7));`,
-    expectedOutput: "13",
-    hint: "What should fib(0) and fib(1) actually return?",
+console.log(isAdult(16));`,
+    expectedOutput: "false",
+    hint: "Look closely at the if-condition operator.",
   },
 ];
 
@@ -260,6 +248,216 @@ const CODING_PROBLEMS = [
       { args: [[-1, -2, -3], 1], expectedOutput: [-3, -1, -2], hidden: true },
     ],
   },
+  {
+    title: "Contains Duplicate",
+    statement:
+      "Given an array of integers, return true if any value appears at least twice and false if every value is unique.\n\nWrite: function solve(values)",
+    starterCode: `function solve(values) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[1, 2, 3, 1]], expectedOutput: true },
+      { args: [[1, 2, 3, 4]], expectedOutput: false },
+      { args: [[-1, -1]], expectedOutput: true, hidden: true },
+      { args: [[]], expectedOutput: false, hidden: true },
+    ],
+  },
+  {
+    title: "Maximum Subarray",
+    statement:
+      "Given an integer array, find the contiguous subarray with the largest sum and return that sum.\n\nWrite: function solve(values)",
+    starterCode: `function solve(values) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[-2, 1, -3, 4, -1, 2, 1, -5, 4]], expectedOutput: 6 },
+      { args: [[1]], expectedOutput: 1 },
+      { args: [[5, 4, -1, 7, 8]], expectedOutput: 23, hidden: true },
+      { args: [[-3, -2, -1]], expectedOutput: -1, hidden: true },
+    ],
+  },
+  {
+    title: "Palindrome Check",
+    statement:
+      "Return true if a string reads the same forward and backward, ignoring case and non-alphanumeric characters.\n\nWrite: function solve(text)",
+    starterCode: `function solve(text) {
+  // your code here
+}`,
+    testCases: [
+      { args: ["A man, a plan, a canal: Panama"], expectedOutput: true },
+      { args: ["race a car"], expectedOutput: false },
+      { args: [""], expectedOutput: true, hidden: true },
+      { args: ["No lemon, no melon!"], expectedOutput: true, hidden: true },
+    ],
+  },
+  {
+    title: "FizzBuzz",
+    statement:
+      "For integers from 1 through n, return an array where multiples of 3 become Fizz, multiples of 5 become Buzz, multiples of both become FizzBuzz, and other values remain numbers.\n\nWrite: function solve(n)",
+    starterCode: `function solve(n) {
+  // your code here
+}`,
+    testCases: [
+      { args: [5], expectedOutput: [1, 2, "Fizz", 4, "Buzz"] },
+      { args: [15], expectedOutput: [1, 2, "Fizz", 4, "Buzz", "Fizz", 7, 8, "Fizz", "Buzz", 11, "Fizz", 13, 14, "FizzBuzz"] },
+      { args: [1], expectedOutput: [1], hidden: true },
+      { args: [0], expectedOutput: [], hidden: true },
+    ],
+  },
+  {
+    title: "Binary Search",
+    statement:
+      "Given a sorted array and a target, return the target index or -1 when it is absent.\n\nWrite: function solve(values, target)",
+    starterCode: `function solve(values, target) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[-1, 0, 3, 5, 9, 12], 9], expectedOutput: 4 },
+      { args: [[-1, 0, 3, 5, 9, 12], 2], expectedOutput: -1 },
+      { args: [[1], 1], expectedOutput: 0, hidden: true },
+      { args: [[], 7], expectedOutput: -1, hidden: true },
+    ],
+  },
+  {
+    title: "Move Zeroes",
+    statement:
+      "Move every zero in an array to the end while preserving the relative order of non-zero values. Return the resulting array.\n\nWrite: function solve(values)",
+    starterCode: `function solve(values) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[0, 1, 0, 3, 12]], expectedOutput: [1, 3, 12, 0, 0] },
+      { args: [[0]], expectedOutput: [0] },
+      { args: [[1, 2, 3]], expectedOutput: [1, 2, 3], hidden: true },
+      { args: [[0, 0, 1]], expectedOutput: [1, 0, 0], hidden: true },
+    ],
+  },
+  {
+    title: "Valid Anagram",
+    statement:
+      "Return true if two strings contain the same characters with the same frequencies.\n\nWrite: function solve(first, second)",
+    starterCode: `function solve(first, second) {
+  // your code here
+}`,
+    testCases: [
+      { args: ["anagram", "nagaram"], expectedOutput: true },
+      { args: ["rat", "car"], expectedOutput: false },
+      { args: ["", ""], expectedOutput: true, hidden: true },
+      { args: ["listen", "silent"], expectedOutput: true, hidden: true },
+    ],
+  },
+  {
+    title: "Climbing Stairs",
+    statement:
+      "You can climb one or two steps at a time. Return the number of distinct ways to reach the top of a staircase with n steps.\n\nWrite: function solve(n)",
+    starterCode: `function solve(n) {
+  // your code here
+}`,
+    testCases: [
+      { args: [2], expectedOutput: 2 },
+      { args: [3], expectedOutput: 3 },
+      { args: [5], expectedOutput: 8, hidden: true },
+      { args: [1], expectedOutput: 1, hidden: true },
+    ],
+  },
+  {
+    title: "Product Except Self",
+    statement:
+      "Return an array where each position contains the product of every input value except the value at that position. Do not use division.\n\nWrite: function solve(values)",
+    starterCode: `function solve(values) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[1, 2, 3, 4]], expectedOutput: [24, 12, 8, 6] },
+      { args: [[-1, 1, 0, -3, 3]], expectedOutput: [0, 0, 9, 0, 0] },
+      { args: [[2, 3]], expectedOutput: [3, 2], hidden: true },
+      { args: [[0, 0]], expectedOutput: [0, 0], hidden: true },
+    ],
+  },
+  {
+    title: "First Unique Character",
+    statement:
+      "Return the index of the first character that appears exactly once, or -1 if no such character exists.\n\nWrite: function solve(text)",
+    starterCode: `function solve(text) {
+  // your code here
+}`,
+    testCases: [
+      { args: ["leetcode"], expectedOutput: 0 },
+      { args: ["loveleetcode"], expectedOutput: 2 },
+      { args: ["aabb"], expectedOutput: -1, hidden: true },
+      { args: ["z"], expectedOutput: 0, hidden: true },
+    ],
+  },
+  {
+    title: "Array Intersection",
+    statement:
+      "Return the unique values that appear in both arrays. The result may be in any order.\n\nWrite: function solve(first, second)",
+    starterCode: `function solve(first, second) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[1, 2, 2, 1], [2, 2]], expectedOutput: [2] },
+      { args: [[4, 9, 5], [9, 4, 9, 8, 4]], expectedOutput: [4, 9] },
+      { args: [[], [1]], expectedOutput: [], hidden: true },
+      { args: [[1, 2], [3, 4]], expectedOutput: [], hidden: true },
+    ],
+  },
+  {
+    title: "Majority Element",
+    statement:
+      "Return the value that appears more than half the time in an array. Assume a majority element always exists.\n\nWrite: function solve(values)",
+    starterCode: `function solve(values) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[3, 2, 3]], expectedOutput: 3 },
+      { args: [[2, 2, 1, 1, 1, 2, 2]], expectedOutput: 2 },
+      { args: [[1]], expectedOutput: 1, hidden: true },
+      { args: [[5, 5, 4]], expectedOutput: 5, hidden: true },
+    ],
+  },
+  {
+    title: "Count Vowels",
+    statement:
+      "Return the number of vowels in a string. Count a, e, i, o, and u regardless of case.\n\nWrite: function solve(text)",
+    starterCode: `function solve(text) {
+  // your code here
+}`,
+    testCases: [
+      { args: ["hello"], expectedOutput: 2 },
+      { args: ["Programming"], expectedOutput: 3 },
+      { args: ["AEIOU"], expectedOutput: 5, hidden: true },
+      { args: ["rhythm"], expectedOutput: 0, hidden: true },
+    ],
+  },
+  {
+    title: "Reverse Words",
+    statement:
+      "Reverse the order of words in a sentence, removing extra spaces between words and at the ends.\n\nWrite: function solve(sentence)",
+    starterCode: `function solve(sentence) {
+  // your code here
+}`,
+    testCases: [
+      { args: ["the sky is blue"], expectedOutput: "blue is sky the" },
+      { args: ["  hello world  "], expectedOutput: "world hello" },
+      { args: ["a"], expectedOutput: "a", hidden: true },
+      { args: ["one   two   three"], expectedOutput: "three two one", hidden: true },
+    ],
+  },
+  {
+    title: "Missing Number",
+    statement:
+      "Given n distinct numbers from the range 0 through n, return the one number missing from the array.\n\nWrite: function solve(values)",
+    starterCode: `function solve(values) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[3, 0, 1]], expectedOutput: 2 },
+      { args: [[0, 1]], expectedOutput: 2 },
+      { args: [[9, 6, 4, 2, 3, 5, 7, 0, 1]], expectedOutput: 8, hidden: true },
+      { args: [[0]], expectedOutput: 1, hidden: true },
+    ],
+  },
 ];
 
 async function main() {
@@ -297,16 +495,12 @@ async function main() {
     console.log(`Skipped MCQ questions - ${existingQuestionCount} already exist for this contest.`);
   }
 
-  const existingBugCount = await prisma.bugQuestion.count({ where: { contestId: contest.id } });
-  if (existingBugCount === 0) {
-    let bugOrder = 1;
-    for (const b of BUG_QUESTIONS) {
-      await prisma.bugQuestion.create({ data: { ...b, order: bugOrder++, contestId: contest.id } });
-    }
-    console.log(`Seeded ${BUG_QUESTIONS.length} bug questions.`);
-  } else {
-    console.log(`Skipped bug questions - ${existingBugCount} already exist for this contest.`);
+  await prisma.bugQuestion.deleteMany({ where: { contestId: contest.id } });
+  let bugOrder = 1;
+  for (const b of BUG_QUESTIONS) {
+    await prisma.bugQuestion.create({ data: { ...b, order: bugOrder++, contestId: contest.id } });
   }
+  console.log(`Seeded ${BUG_QUESTIONS.length} bug questions.`);
 
   let problemOrder = (await prisma.codingProblem.aggregate({
     where: { contestId: contest.id },
