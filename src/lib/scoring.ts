@@ -39,7 +39,7 @@ function timeEfficiencyScore(timeTakenSeconds: number, durationSeconds: number, 
 
 // ---------------------------------------------------------------------------
 // ROUND 2 - BUG WARFARE (max 30)
-//   Bug Identification        10  (auto - meaningful explanation + changed code)
+//   Bug Identification        10  (auto - meaningful written explanation)
 //   Correctness of Fix        10  (auto - fixed output matches expected output)
 //   Expected Output             5  (auto - fixed code's output matches exactly)
 //   Time Efficiency             5  (auto - same time-remaining formula as Round 1)
@@ -64,7 +64,7 @@ export function computeRound2AutoScore(params: {
   const matchedCount = bugQuestionResults.filter((r) => r.outputMatched).length;
   const totalCount = bugQuestionResults.length;
   const identifiedCount = bugQuestionResults.filter(
-    (r) => r.codeChanged && r.explanation.trim().length >= 3
+    (r) => r.explanation.trim().length >= 3
   ).length;
   const bugIdentification = totalCount > 0
     ? Number(((identifiedCount / totalCount) * ROUND2_MAX_MARKS.bugIdentification).toFixed(2))
