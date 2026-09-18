@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireParticipant } from "@/lib/auth";
 import type { TestCase } from "@/lib/judge";
+import { assignCodingProblem } from "@/lib/round3-assignment";
 
 export async function GET() {
   const session = await requireParticipant();
@@ -48,16 +49,21 @@ export async function GET() {
     orderBy: { order: "asc" },
   });
 
+  const assignedProblem = assignCodingProblem(problems, participant.id);
+  if (!assignedProblem) {
+    return NextResponse.json({ error: "No Round 3 problems configured." }, { status: 404 });
+  }
+
   // Hidden test cases (args + expectedOutput) are stripped out entirely here -
   // they only get used server-side, at submit time, in the judge.
-  const sanitized = problems.map((p) => ({
-    id: p.id,
-    title: p.title,
-    statement: p.statement,
-    starterCode: p.starterCode,
-    order: p.order,
-    visibleTestCases: (p.testCases as unknown as TestCase[]).filter((tc) => !tc.hidden),
-  }));
+  const sanitized = [{
+    id: assignedProblem.id,
+    title: assignedProblem.title,
+    statement: assignedProblem.statement,
+    starterCode: assignedProblem.starterCode,
+    order: assignedProblem.order,
+    visibleTestCases: (assignedProblem.testCases as unknown as TestCase[]).filter((tc) => !tc.hidden),
+  }];
 
   return NextResponse.json({
     problems: sanitized,

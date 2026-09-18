@@ -2,6 +2,7 @@ export const CONTEST_RULES = [
   "Copying or attempting to copy code or content is prohibited.",
   "Unauthorized use of external websites, search engines, or resources is prohibited.",
   "Repeated unauthorized tab switching may result in a penalty or disqualification.",
+  "Fullscreen is required during each round. Exiting fullscreen, including by pressing Esc, records a violation and automatically submits your current work.",
   "Communication or collaboration between teams during the round is prohibited.",
   "Any attempt to bypass the contest's monitoring or security mechanisms may result in immediate disqualification.",
   "The organizer's decision regarding violations and scoring will be final.",

@@ -192,7 +192,7 @@ export default function Round3Page() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
-      <FocusGuard active={status.round3Active} />
+      <FocusGuard active={status.round3Active} onViolationSubmit={handleSubmit} />
       <header className="mb-6 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
         <h1 className="font-semibold">Round 3 — Code War</h1>
         <TimerBadge seconds={remainingSeconds} />

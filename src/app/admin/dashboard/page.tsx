@@ -432,8 +432,8 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      <Round2Section rows={round2Rows} onGraded={loadAll} />
-      <Round3Section rows={round3Rows} onGraded={loadAll} />
+      <Round2Section rows={round2Rows} />
+      <Round3Section rows={round3Rows} />
     </main>
   );
 }
@@ -560,43 +560,13 @@ function LeaderboardSection({ rows, loading }: { rows: LeaderboardRow[]; loading
   );
 }
 
-function Round2Section({ rows, onGraded }: { rows: Round2Row[] | null; onGraded: () => void }) {
+function Round2Section({ rows }: { rows: Round2Row[] | null }) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, { bugIdentification: string; correctnessOfFix: string }>>({});
-  const [saving, setSaving] = useState<string | null>(null);
-
-  function draftFor(row: Round2Row) {
-    return (
-      drafts[row.submissionId] ?? {
-        bugIdentification: row.criteriaScores.bugIdentification?.toString() ?? "",
-        correctnessOfFix: row.criteriaScores.correctnessOfFix?.toString() ?? "",
-      }
-    );
-  }
-
-  async function saveGrade(row: Round2Row) {
-    const d = draftFor(row);
-    setSaving(row.submissionId);
-    try {
-      await fetch("/api/admin/round2/grade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          submissionId: row.submissionId,
-          bugIdentification: Number(d.bugIdentification || 0),
-          correctnessOfFix: Number(d.correctnessOfFix || 0),
-        }),
-      });
-      onGraded();
-    } finally {
-      setSaving(null);
-    }
-  }
 
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-semibold">Round 2 — Bug Warfare (30 marks: 10 Bug Identification + 10 Fix + 5 Output + 5 Time)</h2>
+        <h2 className="font-semibold">Round 2 — Bug Warfare (30 marks: 10 Bug Identify + 10 Fix + 5 Output + 5 Time, auto-scored)</h2>
         <button
           disabled={!rows || rows.length === 0}
           onClick={() =>
@@ -636,40 +606,15 @@ function Round2Section({ rows, onGraded }: { rows: Round2Row[] | null; onGraded:
           <tbody>
             {rows === null && <SkeletonRows columns={8} />}
             {rows?.map((row) => {
-              const d = draftFor(row);
               return (
                 <Fragment key={row.submissionId}>
                   <tr className="border-t border-slate-800">
                     <td className="py-1.5">{row.participantName}</td>
                     <td className="py-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={d.bugIdentification}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({
-                            ...prev,
-                            [row.submissionId]: { ...d, bugIdentification: e.target.value },
-                          }))
-                        }
-                        className="w-16 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
-                      />
+                      {row.criteriaScores.bugIdentification ?? 0}
                     </td>
                     <td className="py-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={d.correctnessOfFix}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({
-                            ...prev,
-                            [row.submissionId]: { ...d, correctnessOfFix: e.target.value },
-                          }))
-                        }
-                        className="w-16 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
-                      />
+                      {row.criteriaScores.correctnessOfFix ?? 0}
                     </td>
                     <td className="py-1.5">{row.criteriaScores.expectedOutput}</td>
                     <td className="py-1.5">{row.criteriaScores.timeEfficiency}</td>
@@ -683,19 +628,12 @@ function Round2Section({ rows, onGraded }: { rows: Round2Row[] | null; onGraded:
                         {row.graded ? "Graded" : "Pending"}
                       </span>
                     </td>
-                    <td className="py-1.5 space-x-2">
+                    <td className="py-1.5">
                       <button
                         onClick={() => setExpanded(expanded === row.submissionId ? null : row.submissionId)}
                         className="text-xs text-indigo-400 underline"
                       >
                         {expanded === row.submissionId ? "Hide" : "Review"}
-                      </button>
-                      <button
-                        disabled={saving === row.submissionId}
-                        onClick={() => saveGrade(row)}
-                        className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {saving === row.submissionId ? "Saving..." : "Save"}
                       </button>
                     </td>
                   </tr>
@@ -742,59 +680,14 @@ function Round2Section({ rows, onGraded }: { rows: Round2Row[] | null; onGraded:
   );
 }
 
-function Round3Section({ rows, onGraded }: { rows: Round3Row[] | null; onGraded: () => void }) {
+function Round3Section({ rows }: { rows: Round3Row[] | null }) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<
-    Record<
-      string,
-      {
-        problemUnderstanding: string;
-        logicAlgorithm: string;
-        codeQuality: string;
-        timeSpaceOptimization: string;
-      }
-    >
-  >({});
-
-  const [saving, setSaving] = useState<string | null>(null);
-
-  function draftFor(row: Round3Row) {
-    return (
-      drafts[row.submissionId] ?? {
-        problemUnderstanding: row.criteriaScores.problemUnderstanding?.toString() ?? "",
-        logicAlgorithm: row.criteriaScores.logicAlgorithm?.toString() ?? "",
-        codeQuality: row.criteriaScores.codeQuality?.toString() ?? "",
-        timeSpaceOptimization: row.criteriaScores.timeSpaceOptimization?.toString() ?? "",
-      }
-    );
-  }
-
-  async function saveGrade(row: Round3Row) {
-    const d = draftFor(row);
-    setSaving(row.submissionId);
-    try {
-      await fetch("/api/admin/round3/grade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          submissionId: row.submissionId,
-          problemUnderstanding: Number(d.problemUnderstanding || 0),
-          logicAlgorithm: Number(d.logicAlgorithm || 0),
-          codeQuality: Number(d.codeQuality || 0),
-          timeSpaceOptimization: Number(d.timeSpaceOptimization || 0),
-        }),
-      });
-      onGraded();
-    } finally {
-      setSaving(null);
-    }
-  }
 
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-semibold">
-          Round 3 — Code War (50 marks: 5 Understanding + 15 Logic + 15 Tests + 5 Quality + 10 Time/Space)
+          Round 3 — Code War (50 marks: 5 Understanding + 15 Logic + 15 Tests + 5 Quality + 10 Time/Space, auto-scored)
         </h2>
         <button
           disabled={!rows || rows.length === 0}
@@ -837,59 +730,22 @@ function Round3Section({ rows, onGraded }: { rows: Round3Row[] | null; onGraded:
           <tbody>
             {rows === null && <SkeletonRows columns={9} />}
             {rows?.map((row) => {
-              const d = draftFor(row);
               return (
                 <Fragment key={row.submissionId}>
                   <tr className="border-t border-slate-800">
                     <td className="py-1.5">{row.participantName}</td>
                     <td className="py-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={5}
-                        value={d.problemUnderstanding}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({ ...prev, [row.submissionId]: { ...d, problemUnderstanding: e.target.value } }))
-                        }
-                        className="w-14 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
-                      />
+                      {row.criteriaScores.problemUnderstanding ?? 0}
                     </td>
                     <td className="py-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={15}
-                        value={d.logicAlgorithm}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({ ...prev, [row.submissionId]: { ...d, logicAlgorithm: e.target.value } }))
-                        }
-                        className="w-14 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
-                      />
+                      {row.criteriaScores.logicAlgorithm ?? 0}
                     </td>
                     <td className="py-1.5">{row.criteriaScores.correctnessTestCases}</td>
                     <td className="py-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={5}
-                        value={d.codeQuality}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({ ...prev, [row.submissionId]: { ...d, codeQuality: e.target.value } }))
-                        }
-                        className="w-14 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
-                      />
+                      {row.criteriaScores.codeQuality ?? 0}
                     </td>
                     <td className="py-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={d.timeSpaceOptimization}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({ ...prev, [row.submissionId]: { ...d, timeSpaceOptimization: e.target.value } }))
-                        }
-                        className="w-14 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
-                      />
+                      {row.criteriaScores.timeSpaceOptimization ?? 0}
                     </td>
                     <td className="py-1.5 font-semibold">{row.totalScore}</td>
                     <td className="py-1.5">
@@ -901,19 +757,12 @@ function Round3Section({ rows, onGraded }: { rows: Round3Row[] | null; onGraded:
                         {row.graded ? "Graded" : "Pending"}
                       </span>
                     </td>
-                    <td className="py-1.5 space-x-2">
+                    <td className="py-1.5">
                       <button
                         onClick={() => setExpanded(expanded === row.submissionId ? null : row.submissionId)}
                         className="text-xs text-indigo-400 underline"
                       >
                         {expanded === row.submissionId ? "Hide" : "Review"}
-                      </button>
-                      <button
-                        disabled={saving === row.submissionId}
-                        onClick={() => saveGrade(row)}
-                        className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {saving === row.submissionId ? "Saving..." : "Save"}
                       </button>
                     </td>
                   </tr>

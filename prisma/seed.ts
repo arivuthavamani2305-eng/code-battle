@@ -204,6 +204,62 @@ const CODING_PROBLEMS = [
       { args: [[5, 5], 10], expectedOutput: [0, 1], hidden: true },
     ],
   },
+  {
+    title: "Valid Parentheses",
+    statement:
+      "Given a string containing (), {}, and [], return true when every opening bracket is closed in the correct order. Return false otherwise.\n\nWrite: function solve(s)",
+    starterCode: `function solve(s) {
+  // your code here
+}`,
+    testCases: [
+      { args: ["()[]{}"], expectedOutput: true },
+      { args: ["([)]"], expectedOutput: false },
+      { args: ["{[]}"], expectedOutput: true, hidden: true },
+      { args: ["("], expectedOutput: false, hidden: true },
+    ],
+  },
+  {
+    title: "Merge Sorted Arrays",
+    statement:
+      "Given two sorted arrays nums1 and nums2, return one sorted array containing all values from both arrays.\n\nWrite: function solve(nums1, nums2)",
+    starterCode: `function solve(nums1, nums2) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[1, 3, 5], [2, 4, 6]], expectedOutput: [1, 2, 3, 4, 5, 6] },
+      { args: [[], [1, 2]], expectedOutput: [1, 2] },
+      { args: [[-3, 0, 7], [-2, 4]], expectedOutput: [-3, -2, 0, 4, 7], hidden: true },
+      { args: [[1], []], expectedOutput: [1], hidden: true },
+    ],
+  },
+  {
+    title: "Longest Word",
+    statement:
+      "Given a sentence, return the longest word. If multiple words have the same length, return the first one. Ignore punctuation at word boundaries.\n\nWrite: function solve(sentence)",
+    starterCode: `function solve(sentence) {
+  // your code here
+}`,
+    testCases: [
+      { args: ["Code battles reward practice"], expectedOutput: "battles" },
+      { args: ["small big"], expectedOutput: "small" },
+      { args: ["Write clean solutions!"], expectedOutput: "solutions", hidden: true },
+      { args: ["one"], expectedOutput: "one", hidden: true },
+    ],
+  },
+  {
+    title: "Rotate Array",
+    statement:
+      "Given an array and a non-negative integer k, rotate the array to the right by k positions and return the result.\n\nWrite: function solve(values, k)",
+    starterCode: `function solve(values, k) {
+  // your code here
+}`,
+    testCases: [
+      { args: [[1, 2, 3, 4, 5], 2], expectedOutput: [4, 5, 1, 2, 3] },
+      { args: [[1, 2], 3], expectedOutput: [2, 1] },
+      { args: [[], 4], expectedOutput: [], hidden: true },
+      { args: [[-1, -2, -3], 1], expectedOutput: [-3, -1, -2], hidden: true },
+    ],
+  },
 ];
 
 async function main() {
@@ -252,16 +308,19 @@ async function main() {
     console.log(`Skipped bug questions - ${existingBugCount} already exist for this contest.`);
   }
 
-  const existingProblemCount = await prisma.codingProblem.count({ where: { contestId: contest.id } });
-  if (existingProblemCount === 0) {
-    let problemOrder = 1;
-    for (const p of CODING_PROBLEMS) {
-      await prisma.codingProblem.create({ data: { ...p, order: problemOrder++, contestId: contest.id } });
+  let problemOrder = (await prisma.codingProblem.aggregate({
+    where: { contestId: contest.id },
+    _max: { order: true },
+  }))._max.order ?? 0;
+  let seededProblems = 0;
+  for (const p of CODING_PROBLEMS) {
+    const exists = await prisma.codingProblem.findFirst({ where: { contestId: contest.id, title: p.title } });
+    if (!exists) {
+      await prisma.codingProblem.create({ data: { ...p, order: ++problemOrder, contestId: contest.id } });
+      seededProblems++;
     }
-    console.log(`Seeded ${CODING_PROBLEMS.length} coding problem(s).`);
-  } else {
-    console.log(`Skipped coding problems - ${existingProblemCount} already exist for this contest.`);
   }
+  console.log(`Coding problem pool ready: ${problemOrder} total, ${seededProblems} added.`);
 
   const existingParticipantCount = await prisma.participant.count({ where: { contestId: contest.id } });
   if (existingParticipantCount === 0) {

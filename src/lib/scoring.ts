@@ -39,8 +39,8 @@ function timeEfficiencyScore(timeTakenSeconds: number, durationSeconds: number, 
 
 // ---------------------------------------------------------------------------
 // ROUND 2 - BUG WARFARE (max 30)
-//   Bug Identification        10  (manual, admin-graded)
-//   Correctness of Fix        10  (manual, admin-graded)
+//   Bug Identification        10  (auto - meaningful explanation + changed code)
+//   Correctness of Fix        10  (auto - fixed output matches expected output)
 //   Expected Output             5  (auto - fixed code's output matches exactly)
 //   Time Efficiency             5  (auto - same time-remaining formula as Round 1)
 // ---------------------------------------------------------------------------
@@ -52,10 +52,10 @@ export const ROUND2_MAX_MARKS = {
   timeEfficiency: 5,
 } as const;
 
-// Called once at submit time to compute the two auto-gradable pieces.
-// bugQuestionResults: one entry per bug question, outputMatched from the judge.
+// Called once at submit time. Both formerly manual pieces are derived from
+// objective submission signals so every Round 2 submission is graded immediately.
 export function computeRound2AutoScore(params: {
-  bugQuestionResults: { outputMatched: boolean }[];
+  bugQuestionResults: { outputMatched: boolean; codeChanged: boolean; explanation: string }[];
   timeTakenSeconds: number;
   durationSeconds: number;
 }) {
@@ -63,6 +63,15 @@ export function computeRound2AutoScore(params: {
 
   const matchedCount = bugQuestionResults.filter((r) => r.outputMatched).length;
   const totalCount = bugQuestionResults.length;
+  const identifiedCount = bugQuestionResults.filter(
+    (r) => r.codeChanged && r.explanation.trim().length >= 3
+  ).length;
+  const bugIdentification = totalCount > 0
+    ? Number(((identifiedCount / totalCount) * ROUND2_MAX_MARKS.bugIdentification).toFixed(2))
+    : 0;
+  const correctnessOfFix = totalCount > 0
+    ? Number(((matchedCount / totalCount) * ROUND2_MAX_MARKS.correctnessOfFix).toFixed(2))
+    : 0;
   const expectedOutput =
     totalCount > 0
       ? Number(((matchedCount / totalCount) * ROUND2_MAX_MARKS.expectedOutput).toFixed(2))
@@ -73,7 +82,7 @@ export function computeRound2AutoScore(params: {
       ? timeEfficiencyScore(timeTakenSeconds, durationSeconds, ROUND2_MAX_MARKS.timeEfficiency)
       : 0;
 
-  return { expectedOutput, timeEfficiency };
+  return { bugIdentification, correctnessOfFix, expectedOutput, timeEfficiency };
 }
 
 // Called by the admin grading endpoint once manual marks are entered.
@@ -105,13 +114,11 @@ export function computeRound2TotalScore(criteria: {
 
 // ---------------------------------------------------------------------------
 // ROUND 3 - CODE WAR (max 50)
-//   Problem Understanding      5  (manual, admin-graded)
-//   Logic & Algorithm         15  (manual, admin-graded)
+//   Problem Understanding      5  (auto - valid solve function submitted)
+//   Logic & Algorithm         15  (auto - test pass ratio)
 //   Correctness & Test Cases  15  (auto - fraction of test cases passed)
-//   Code Quality                5  (manual, admin-graded)
-//   Time & Space Optimization 10  (manual, admin-graded - the admin sees
-//                                  measured runtime as a reference, but
-//                                  real complexity analysis needs a human)
+//   Code Quality                5  (auto - executable solution)
+//   Time & Space Optimization 10  (auto - measured runtime)
 // ---------------------------------------------------------------------------
 
 export const ROUND3_MAX_MARKS = {
@@ -122,13 +129,27 @@ export const ROUND3_MAX_MARKS = {
   timeSpaceOptimization: 10,
 } as const;
 
-export function computeRound3AutoScore(params: { passedCount: number; totalCount: number }) {
-  const { passedCount, totalCount } = params;
+export function computeRound3AutoScore(params: {
+  passedCount: number;
+  totalCount: number;
+  code: string;
+  totalDurationMs: number;
+}) {
+  const { passedCount, totalCount, code, totalDurationMs } = params;
   const correctnessTestCases =
     totalCount > 0
       ? Number(((passedCount / totalCount) * ROUND3_MAX_MARKS.correctnessTestCases).toFixed(2))
       : 0;
-  return { correctnessTestCases };
+  const hasSolveFunction = /(?:function\s+solve\s*\(|(?:const|let|var)\s+solve\s*=)/.test(code);
+  const problemUnderstanding = code.trim() && hasSolveFunction ? ROUND3_MAX_MARKS.problemUnderstanding : 0;
+  const logicAlgorithm = correctnessTestCases;
+  const codeQuality = code.trim() && hasSolveFunction && totalCount > 0 ? ROUND3_MAX_MARKS.codeQuality : 0;
+  const averageDurationMs = totalCount > 0 ? totalDurationMs / totalCount : 3000;
+  const timeSpaceOptimization = passedCount > 0
+    ? Number((Math.max(0, Math.min(1, 1 - averageDurationMs / 3000)) * ROUND3_MAX_MARKS.timeSpaceOptimization).toFixed(2))
+    : 0;
+
+  return { problemUnderstanding, logicAlgorithm, correctnessTestCases, codeQuality, timeSpaceOptimization };
 }
 
 export function computeRound3TotalScore(criteria: {

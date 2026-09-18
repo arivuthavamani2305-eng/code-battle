@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireParticipant } from "@/lib/auth";
+import { shuffleForParticipant } from "@/lib/round3-assignment";
 
 export async function GET() {
   const session = await requireParticipant();
@@ -54,7 +55,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    questions,
+    questions: shuffleForParticipant(questions, participant.id),
     round1EndAt: contest.round1EndAt,
     serverTime: now.toISOString(),
   });

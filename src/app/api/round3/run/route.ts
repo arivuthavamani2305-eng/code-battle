@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireParticipant } from "@/lib/auth";
 import { runTestCases, type TestCase } from "@/lib/judge";
+import { assignCodingProblem } from "@/lib/round3-assignment";
 
 export async function POST(req: NextRequest) {
   const session = await requireParticipant();
@@ -45,8 +46,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Round 3 is not currently active." }, { status: 403 });
   }
 
-  const problem = await prisma.codingProblem.findUnique({ where: { id: problemId } });
-  if (!problem || problem.contestId !== contest.id) {
+  const problems = await prisma.codingProblem.findMany({ where: { contestId: contest.id } });
+  const problem = assignCodingProblem(problems, participant.id);
+  if (!problem || problem.id !== problemId) {
     return NextResponse.json({ error: "Problem not found." }, { status: 404 });
   }
 

@@ -70,9 +70,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Run each JS fix through the sandbox and compare its output to the
-  // expected output. Non-JS snippets (or code that doesn't run) simply
-  // don't get auto credit here - the admin's manual "Correctness of Fix"
-  // mark is what covers those.
+  // expected output. The submission is fully graded from these objective
+  // results plus whether the participant supplied a meaningful explanation.
   const payloadItems = bugQuestions.map((q) => {
     const fix = cleanedFixes.get(q.id);
     const fixedCode = fix?.fixedCode ?? "";
@@ -94,6 +93,7 @@ export async function POST(req: NextRequest) {
       title: q.title,
       fixedCode,
       bugExplanation,
+      codeChanged: fixedCode.trim() !== q.buggyCode.trim(),
       actualOutput,
       runError,
       outputMatched,
@@ -102,15 +102,19 @@ export async function POST(req: NextRequest) {
 
   const timeTakenSeconds = Math.max(0, (now.getTime() - contest.round2StartAt!.getTime()) / 1000);
 
-  const { expectedOutput, timeEfficiency } = computeRound2AutoScore({
-    bugQuestionResults: payloadItems.map((p) => ({ outputMatched: p.outputMatched })),
+  const { bugIdentification, correctnessOfFix, expectedOutput, timeEfficiency } = computeRound2AutoScore({
+    bugQuestionResults: payloadItems.map((p) => ({
+      outputMatched: p.outputMatched,
+      codeChanged: p.codeChanged,
+      explanation: p.bugExplanation,
+    })),
     timeTakenSeconds,
     durationSeconds: contest.round2DurationSeconds,
   });
 
   const criteriaScores = {
-    bugIdentification: null, // pending admin grading
-    correctnessOfFix: null, // pending admin grading
+    bugIdentification,
+    correctnessOfFix,
     expectedOutput,
     timeEfficiency,
   };
@@ -120,10 +124,11 @@ export async function POST(req: NextRequest) {
       data: {
         participantId: participant.id,
         round: 2,
-        totalScore: 0, // finalized once the admin grades the manual criteria
+        totalScore: Number((bugIdentification + correctnessOfFix + expectedOutput + timeEfficiency).toFixed(2)),
         payload: payloadItems,
         criteriaScores,
-        graded: false,
+        graded: true,
+        gradedAt: now,
       },
     });
 

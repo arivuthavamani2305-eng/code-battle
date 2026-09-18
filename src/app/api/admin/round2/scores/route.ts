@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { computeRound2AutoScore } from "@/lib/scoring";
 
 export async function GET() {
   const session = await requireAdmin();
@@ -10,24 +11,52 @@ export async function GET() {
 
   const submissions = await prisma.submission.findMany({
     where: { round: 2, participant: { disqualified: false } },
-    include: { participant: true },
+    include: { participant: { include: { contest: true } } },
     orderBy: { submittedAt: "asc" },
   });
 
-  const rows = submissions
-    .map((s) => ({
+  const rows = (await Promise.all(submissions.map(async (s) => {
+    const existing = (s.criteriaScores as Record<string, number | null> | null) ?? {};
+    const bugQuestions = await prisma.bugQuestion.findMany({ where: { contestId: s.participant.contestId } });
+    const payload = Array.isArray(s.payload) ? (s.payload as Array<{
+      bugQuestionId?: string;
+      fixedCode?: string;
+      bugExplanation?: string;
+      outputMatched?: boolean;
+    }>) : [];
+    const questionById = new Map(bugQuestions.map((question) => [question.id, question]));
+    const results = payload.map((item) => {
+      const question = item.bugQuestionId ? questionById.get(item.bugQuestionId) : undefined;
+      return {
+        outputMatched: item.outputMatched === true,
+        codeChanged: !!question && (item.fixedCode ?? "").trim() !== question.buggyCode.trim(),
+        explanation: item.bugExplanation ?? "",
+      };
+    });
+    const timeTakenSeconds = Math.max(0, (s.submittedAt.getTime() - (s.participant.contest.round2StartAt?.getTime() ?? s.submittedAt.getTime())) / 1000);
+    const autoScore = computeRound2AutoScore({
+      bugQuestionResults: results,
+      timeTakenSeconds,
+      durationSeconds: s.participant.contest.round2DurationSeconds,
+    });
+    const criteriaScores = { ...existing, ...autoScore };
+    const totalScore = Number((autoScore.bugIdentification + autoScore.correctnessOfFix + autoScore.expectedOutput + autoScore.timeEfficiency).toFixed(2));
+    await prisma.submission.update({
+      where: { id: s.id },
+      data: { criteriaScores, totalScore, graded: true, gradedAt: s.gradedAt ?? new Date() },
+    });
+    return {
       submissionId: s.id,
       participantName: s.participant.name,
       accessCode: s.participant.accessCode,
-      graded: s.graded,
-      criteriaScores: s.criteriaScores,
-      totalScore: s.totalScore,
+      graded: true,
+      criteriaScores,
+      totalScore,
       payload: s.payload,
       submittedAt: s.submittedAt,
-    }))
+    };
+  })))
     .sort((a, b) => {
-      // Graded submissions ranked by score; ungraded ones surface first so
-      // the admin notices what still needs marks entered.
       if (a.graded !== b.graded) return a.graded ? 1 : -1;
       return b.totalScore - a.totalScore;
     });

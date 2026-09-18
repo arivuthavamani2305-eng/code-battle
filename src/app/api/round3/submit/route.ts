@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireParticipant } from "@/lib/auth";
 import { computeRound3AutoScore } from "@/lib/scoring";
 import { runTestCases, type TestCase } from "@/lib/judge";
+import { assignCodingProblem } from "@/lib/round3-assignment";
 
 type IncomingSolution = { problemId: string; code: string };
 
@@ -58,7 +59,11 @@ export async function POST(req: NextRequest) {
   }
 
   const problems = await prisma.codingProblem.findMany({ where: { contestId: contest.id } });
-  const problemById = new Map(problems.map((p) => [p.id, p]));
+  const assignedProblem = assignCodingProblem(problems, participant.id);
+  if (!assignedProblem) {
+    return NextResponse.json({ error: "No Round 3 problems configured." }, { status: 404 });
+  }
+  const problemById = new Map([[assignedProblem.id, assignedProblem]]);
 
   const cleanedSolutions = new Map<string, string>();
   for (const s of rawSolutions) {
@@ -70,7 +75,7 @@ export async function POST(req: NextRequest) {
   let totalPassed = 0;
   let totalCases = 0;
 
-  const payloadItems = problems.map((p) => {
+  const payloadItems = [assignedProblem].map((p) => {
     const code = cleanedSolutions.get(p.id) ?? "";
     const testCases = p.testCases as unknown as TestCase[];
 
@@ -83,10 +88,11 @@ export async function POST(req: NextRequest) {
         results: testCases.map((tc) => ({ hidden: !!tc.hidden, passed: false, error: "No code submitted.", timedOut: false })),
         passedCount: 0,
         totalCount: testCases.length,
+        totalDurationMs: 0,
       };
     }
 
-    const { results, passedCount } = runTestCases(code, testCases);
+    const { results, passedCount, totalDurationMs } = runTestCases(code, testCases);
     totalPassed += passedCount;
     totalCases += testCases.length;
 
@@ -97,31 +103,27 @@ export async function POST(req: NextRequest) {
       results,
       passedCount,
       totalCount: testCases.length,
+      totalDurationMs,
     };
   });
 
-  const { correctnessTestCases } = computeRound3AutoScore({
+  const criteriaScores = computeRound3AutoScore({
     passedCount: totalPassed,
     totalCount: totalCases,
+    code: payloadItems[0]?.code ?? "",
+    totalDurationMs: payloadItems[0]?.totalDurationMs ?? 0,
   });
-
-  const criteriaScores = {
-    problemUnderstanding: null, // pending admin grading
-    logicAlgorithm: null, // pending admin grading
-    correctnessTestCases,
-    codeQuality: null, // pending admin grading
-    timeSpaceOptimization: null, // pending admin grading
-  };
 
   try {
     await prisma.submission.create({
       data: {
         participantId: participant.id,
         round: 3,
-        totalScore: 0, // finalized once the admin grades the manual criteria
+        totalScore: Number(Object.values(criteriaScores).reduce((sum, score) => sum + score, 0).toFixed(2)),
         payload: payloadItems as Prisma.InputJsonValue,
         criteriaScores,
-        graded: false,
+        graded: true,
+        gradedAt: now,
       },
     });
 
