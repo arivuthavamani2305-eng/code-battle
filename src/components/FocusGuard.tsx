@@ -16,36 +16,57 @@ export function FocusGuard({ active, onViolationSubmit }: { active: boolean; onV
   useEffect(() => {
     if (!active) return;
 
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        setInterrupted(true);
+    const submitForViolation = (type: "FULLSCREEN_EXIT" | "TAB_SWITCH" | "WINDOW_BLUR") => {
+      setFocused(false);
+      setInterrupted(true);
+      fetch("/api/round1/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      }).catch(() => {});
+      if (!submittedForExitRef.current) {
+        submittedForExitRef.current = true;
+        setAutoSubmitting(true);
+        submitRef.current().catch(() => {
+          setAutoSubmitting(false);
+          submittedForExitRef.current = false;
+        });
       }
     };
+
+    const onVisibilityChange = () => {
+      if (document.hidden && focused) {
+        submitForViolation("TAB_SWITCH");
+      }
+    };
+
+    const onBlur = () => {
+      if (focused && !document.hidden) {
+        submitForViolation("WINDOW_BLUR");
+      }
+    };
+
     const onFullscreenChange = () => {
       if (!document.fullscreenElement && focused) {
-        setFocused(false);
-        setInterrupted(true);
-        fetch("/api/round1/audit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "FULLSCREEN_EXIT" }),
-        }).catch(() => {});
-        if (!submittedForExitRef.current) {
-          submittedForExitRef.current = true;
-          setAutoSubmitting(true);
-          submitRef.current().catch(() => {
-            setAutoSubmitting(false);
-            submittedForExitRef.current = false;
-          });
-        }
+        submitForViolation("FULLSCREEN_EXIT");
+      }
+    };
+
+    const onPageHide = () => {
+      if (focused) {
+        submitForViolation("TAB_SWITCH");
       }
     };
 
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
     document.addEventListener("fullscreenchange", onFullscreenChange);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
       document.removeEventListener("fullscreenchange", onFullscreenChange);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, [active, focused]);
 

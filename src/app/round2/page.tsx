@@ -105,17 +105,20 @@ export default function Round2Page() {
     const onFocus = () => reportAudit("WINDOW_FOCUS");
     const onCopy = () => reportAudit("COPY_ATTEMPT");
     const onPaste = () => reportAudit("PASTE_ATTEMPT");
+    const onPageHide = () => reportAudit("TAB_SWITCH");
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
     document.addEventListener("copy", onCopy);
     document.addEventListener("paste", onPaste);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("copy", onCopy);
       document.removeEventListener("paste", onPaste);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, []);
 

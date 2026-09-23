@@ -114,8 +114,12 @@ export default function ContestPage() {
     const onFullscreenChange = () => {
       if (!document.fullscreenElement) reportAudit("FULLSCREEN_EXIT");
     };
+    const onVisibilityStateCheck = () => {
+      if (document.visibilityState === "hidden") reportAudit("TAB_SWITCH");
+    };
 
     document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener("visibilitychange", onVisibilityStateCheck);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
     document.addEventListener("copy", onCopy);
@@ -124,6 +128,7 @@ export default function ContestPage() {
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("visibilitychange", onVisibilityStateCheck);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("copy", onCopy);
