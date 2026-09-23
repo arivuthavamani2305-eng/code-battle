@@ -254,10 +254,10 @@ export default function Round2Page() {
                 )}
                 {result && (
                   <span className={`text-xs ${result.matched ? "text-emerald-400" : "text-red-400"}`}>
-                    {result.matched === null
-                      ? result.error
-                      : result.matched
+                    {result.matched
                       ? "Output matches expected ✓"
+                      : result.error
+                      ? result.error
                       : `Output: ${result.output ?? "(none)"} — does not match yet`}
                   </span>
                 )}

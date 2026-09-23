@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireParticipant } from "@/lib/auth";
-import { runTestCases, type TestCase } from "@/lib/judge";
+import { runExternalCode, type ExternalTestCase } from "@/lib/judge";
 import { assignCodingProblem } from "@/lib/round3-assignment";
 
 export async function POST(req: NextRequest) {
@@ -13,9 +13,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const problemId = typeof body?.problemId === "string" ? body.problemId : "";
   const code = typeof body?.code === "string" ? body.code.slice(0, 20000) : "";
+  const language = body?.language === "java" ? "java" : body?.language === "python" ? "python" : "";
 
-  if (!problemId || !code.trim()) {
-    return NextResponse.json({ error: "Missing problemId or code." }, { status: 400 });
+  if (!problemId || !code.trim() || !language) {
+    return NextResponse.json({ error: "Missing problemId, language, or code." }, { status: 400 });
   }
 
   const participant = await prisma.participant.findUnique({
@@ -52,8 +53,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Problem not found." }, { status: 404 });
   }
 
-  const visibleTestCases = (problem.testCases as unknown as TestCase[]).filter((tc) => !tc.hidden);
-  const { results, passedCount } = runTestCases(code, visibleTestCases);
+  const visibleTestCases = (problem.testCases as unknown as ExternalTestCase[]).filter((tc) => !tc.hidden);
+  const results = [];
+  let passedCount = 0;
+  for (const testCase of visibleTestCases) {
+    const result = await runExternalCode(language, code, testCase.stdin);
+    const passed = result.ok && result.output === testCase.expectedOutput.trim();
+    if (passed) passedCount++;
+    results.push({ hidden: false, passed, error: result.error, timedOut: result.timedOut, actualOutput: result.output });
+  }
 
   return NextResponse.json({
     results,

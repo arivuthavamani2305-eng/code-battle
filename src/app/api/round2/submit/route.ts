@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   // Run each Python fix through the language-appropriate sandbox and compare
   // its output to the expected result. Explanations are intentionally not used.
-  const payloadItems = bugQuestions.map((q) => {
+  const payloadItems = await Promise.all(bugQuestions.map(async (q) => {
     const fixedCode = cleanedFixes.get(q.id) ?? "";
 
     let actualOutput: string | null = null;
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     let runError: string | null = null;
 
     if (fixedCode.trim()) {
-      const result = q.language === "python" ? runPythonScriptCapturingOutput(fixedCode) : runScriptCapturingOutput(fixedCode);
+      const result = q.language === "python" ? await runPythonScriptCapturingOutput(fixedCode) : runScriptCapturingOutput(fixedCode);
       actualOutput = result.output;
       runError = result.error;
       outputMatched = result.ok && result.output.trim() === q.expectedOutput.trim();
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       runError,
       outputMatched,
     };
-  });
+  }));
 
   const timeTakenSeconds = Math.max(0, (now.getTime() - contest.round2StartAt!.getTime()) / 1000);
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireParticipant } from "@/lib/auth";
-import type { TestCase } from "@/lib/judge";
+import type { ExternalTestCase } from "@/lib/judge";
 import { assignCodingProblem } from "@/lib/round3-assignment";
 
 export async function GET() {
@@ -54,7 +54,7 @@ export async function GET() {
     return NextResponse.json({ error: "No Round 3 problems configured." }, { status: 404 });
   }
 
-  // Hidden test cases (args + expectedOutput) are stripped out entirely here -
+  // Hidden test cases (stdin + expectedOutput) are stripped out entirely here -
   // they only get used server-side, at submit time, in the judge.
   const sanitized = [{
     id: assignedProblem.id,
@@ -62,7 +62,7 @@ export async function GET() {
     statement: assignedProblem.statement,
     starterCode: assignedProblem.starterCode,
     order: assignedProblem.order,
-    visibleTestCases: (assignedProblem.testCases as unknown as TestCase[]).filter((tc) => !tc.hidden),
+    visibleTestCases: (assignedProblem.testCases as unknown as ExternalTestCase[]).filter((tc) => !tc.hidden),
   }];
 
   return NextResponse.json({

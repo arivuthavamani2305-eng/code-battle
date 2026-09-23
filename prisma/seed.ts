@@ -224,6 +224,21 @@ const CODING_PROBLEMS = [
   { title: "Product of Array Except Self", statement: "Return a new array where each element is the product of all values except itself.\n\nWrite: function solve(values)", starterCode: "function solve(values) {\n  // your code here\n}", testCases: [{ args: [[1, 2, 3, 4]], expectedOutput: [24, 12, 8, 6] }, { args: [[-1, 1, 0, -3, 3]], expectedOutput: [0, 0, 9, 0, 0] }, { args: [[2, 3]], expectedOutput: [3, 2], hidden: true }, { args: [[0, 0]], expectedOutput: [0, 0], hidden: true }] },
 ];
 
+const ROUND3_PROBLEMS = [
+  {
+    title: "Longest Consecutive Sequence",
+    statement: "Given an unsorted list of integers, print the length of the longest consecutive sequence. The algorithm must run in O(n) average time.\n\nInput: one line of space-separated integers.\nOutput: one integer.",
+    starterCode: "import sys\n\ndef solve(values):\n    # Return the longest consecutive sequence length in O(n) average time.\n    return 0\n\nvalues = list(map(int, sys.stdin.read().split()))\nprint(solve(values))",
+    testCases: [
+      { stdin: "100 4 200 1 3 2", expectedOutput: "4" },
+      { stdin: "0 3 7 2 5 8 4 6 0 1", expectedOutput: "9" },
+      { stdin: "10 5 12 3 55 30 4 11 2", expectedOutput: "3", hidden: true },
+      { stdin: "1 9 3 10 4 20 2", expectedOutput: "4", hidden: true },
+      { stdin: "", expectedOutput: "0", hidden: true },
+    ],
+  },
+];
+
 async function main() {
   let contest = await prisma.contest.findFirst({ orderBy: { createdAt: "asc" } });
 
@@ -261,14 +276,12 @@ async function main() {
     });
   }
 
-  const existingProblemCount = await prisma.codingProblem.count({ where: { contestId: contest.id } });
-  if (existingProblemCount === 0) {
-    let problemOrder = 1;
-    for (const problem of CODING_PROBLEMS) {
-      await prisma.codingProblem.create({
-        data: { ...problem, order: problemOrder++, contestId: contest.id },
-      });
-    }
+  await prisma.codingProblem.deleteMany({ where: { contestId: contest.id } });
+  let problemOrder = 1;
+  for (const problem of ROUND3_PROBLEMS) {
+    await prisma.codingProblem.create({
+      data: { ...problem, order: problemOrder++, contestId: contest.id },
+    });
   }
 
   const participantCount = await prisma.participant.count({ where: { contestId: contest.id } });

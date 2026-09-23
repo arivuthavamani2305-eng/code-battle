@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const result = runPythonScriptCapturingOutput(code);
+  const result = await runPythonScriptCapturingOutput(code);
   const matched = result.ok && result.output.trim() === bugQuestion.expectedOutput.trim();
 
   return NextResponse.json({

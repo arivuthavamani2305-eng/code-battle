@@ -11,7 +11,6 @@
 // future hardening step; this is the lightweight version of that for now.
 
 import { Script, createContext } from "vm";
-import { spawnSync } from "child_process";
 
 const DEFAULT_TIMEOUT_MS = 3000;
 
@@ -60,51 +59,130 @@ export function runScriptCapturingOutput(code: string, timeoutMs = DEFAULT_TIMEO
   }
 }
 
-export function runPythonScriptCapturingOutput(code: string, timeoutMs = DEFAULT_TIMEOUT_MS): RunResult {
+export async function runPythonScriptCapturingOutput(code: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<RunResult> {
   const start = Date.now();
-  const pythonCommand = process.env.PYTHON_BIN ?? (process.platform === "win32" ? "python" : "python3");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs + 1000);
+  const apiUrl = process.env.JUDGE0_API_URL ?? "https://ce.judge0.com";
 
-  const result = spawnSync(pythonCommand, ["-c", code], {
-    timeout: timeoutMs,
-    encoding: "utf-8",
-    env: process.env,
-  });
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/submissions?base64_encoded=false&wait=true`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        language_id: 71,
+        source_code: code,
+        cpu_time_limit: timeoutMs / 1000,
+        wall_time_limit: timeoutMs / 1000,
+      }),
+      signal: controller.signal,
+      cache: "no-store",
+    });
 
-  const output = (result.stdout ?? "").replace(/\r\n/g, "\n").trim();
-  const errorOutput = (result.stderr ?? "").replace(/\r\n/g, "\n").trim();
-  const timedOut = result.error?.message?.toLowerCase().includes("timed out") || result.signal === "SIGTERM";
+    const payload = await response.json().catch(() => null) as {
+      stdout?: string | null;
+      stderr?: string | null;
+      compile_output?: string | null;
+      message?: string | null;
+      status?: { id?: number; description?: string };
+    } | null;
+    const output = (payload?.stdout ?? "").replace(/\r\n/g, "\n").trim();
+    const errorOutput = (payload?.compile_output ?? payload?.stderr ?? payload?.message ?? "").trim();
+    const accepted = payload?.status?.id === 3;
 
-  if (result.error && !timedOut) {
+    if (!response.ok) {
+      return {
+        ok: false,
+        output,
+        error: errorOutput || `Hosted judge request failed (${response.status}).`,
+        timedOut: false,
+        durationMs: Date.now() - start,
+      };
+    }
+
     return {
-      ok: false,
+      ok: accepted,
       output,
-      error: cleanErrorMessage(result.error),
-      timedOut: false,
+      error: accepted ? null : (errorOutput || payload?.status?.description || "Python execution failed."),
+      timedOut: payload?.status?.id === 5,
       durationMs: Date.now() - start,
     };
-  }
-
-  if (timedOut) {
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === "AbortError";
     return {
       ok: false,
-      output,
-      error: "Time limit exceeded.",
-      timedOut: true,
+      output: "",
+      error: timedOut ? "Time limit exceeded." : "Hosted Python judge is unavailable. Please try again.",
+      timedOut,
       durationMs: Date.now() - start,
     };
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const ok = result.status === 0;
-  return {
-    ok,
-    output,
-    error: ok ? null : (errorOutput || "Python execution failed."),
-    timedOut: false,
-    durationMs: Date.now() - start,
-  };
 }
 
 export type TestCase = { args: unknown[]; expectedOutput: unknown; hidden?: boolean };
+
+export type ExternalTestCase = { stdin: string; expectedOutput: string; hidden?: boolean };
+
+const JUDGE0_LANGUAGE_IDS = { python: 71, java: 62 } as const;
+
+export async function runExternalCode(
+  language: "python" | "java",
+  code: string,
+  stdin: string,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<RunResult> {
+  const start = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs + 1000);
+  const apiUrl = process.env.JUDGE0_API_URL ?? "https://ce.judge0.com";
+
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/submissions?base64_encoded=false&wait=true`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        language_id: JUDGE0_LANGUAGE_IDS[language],
+        source_code: code,
+        stdin,
+        cpu_time_limit: timeoutMs / 1000,
+        wall_time_limit: timeoutMs / 1000,
+      }),
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    const payload = await response.json().catch(() => null) as {
+      stdout?: string | null;
+      stderr?: string | null;
+      compile_output?: string | null;
+      message?: string | null;
+      status?: { id?: number; description?: string };
+    } | null;
+    const output = (payload?.stdout ?? "").replace(/\r\n/g, "\n").trim();
+    const errorOutput = (payload?.compile_output ?? payload?.stderr ?? payload?.message ?? "").trim();
+    const accepted = payload?.status?.id === 3;
+
+    return {
+      ok: response.ok && accepted,
+      output,
+      error: response.ok && accepted ? null : errorOutput || payload?.status?.description || `Hosted judge request failed (${response.status}).`,
+      timedOut: payload?.status?.id === 5,
+      durationMs: Date.now() - start,
+    };
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === "AbortError";
+    return {
+      ok: false,
+      output: "",
+      error: timedOut ? "Time limit exceeded." : "Hosted code judge is unavailable. Please try again.",
+      timedOut,
+      durationMs: Date.now() - start,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export type TestCaseResult = {
   hidden: boolean;

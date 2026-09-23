@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FocusGuard } from "@/components/FocusGuard";
 
-type VisibleTestCase = { args: unknown[]; expectedOutput: unknown };
+type VisibleTestCase = { stdin: string; expectedOutput: string };
 
 type Problem = {
   id: string;
@@ -13,6 +13,32 @@ type Problem = {
   order: number;
   visibleTestCases: VisibleTestCase[];
 };
+
+const PYTHON_STARTER = `import sys
+
+def solve(values):
+  # Read the input and print the answer.
+  pass
+
+numbers = list(map(int, sys.stdin.read().split()))
+print(solve(numbers))`;
+
+const JAVA_STARTER = `import java.io.*;
+import java.util.*;
+
+public class Main {
+  static int solve(int[] values) {
+    return 0;
+  }
+
+  public static void main(String[] args) throws Exception {
+    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+    String[] tokens = reader.readLine().trim().split("\\\\s+");
+    int[] values = new int[tokens.length];
+    for (int i = 0; i < tokens.length; i++) values[i] = Integer.parseInt(tokens[i]);
+    System.out.println(solve(values));
+  }
+}`;
 
 type Status = {
   round3Active: boolean;
@@ -41,6 +67,7 @@ export default function Round3Page() {
   const [status, setStatus] = useState<Status | null>(null);
   const [problems, setProblems] = useState<Problem[] | null>(null);
   const [code, setCode] = useState<Record<string, string>>({});
+  const [languages, setLanguages] = useState<Record<string, "python" | "java">>({});
   const [runResults, setRunResults] = useState<Record<string, RunResult>>({});
   const [running, setRunning] = useState<Record<string, boolean>>({});
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
@@ -67,6 +94,11 @@ export default function Round3Page() {
     if (res.ok) {
       const data = await res.json();
       setProblems(data.problems);
+      setLanguages((prev) => {
+        const next = { ...prev };
+        for (const p of data.problems as Problem[]) if (!next[p.id]) next[p.id] = "python";
+        return next;
+      });
       setCode((prev) => {
         const next = { ...prev };
         for (const p of data.problems as Problem[]) {
@@ -132,7 +164,7 @@ export default function Round3Page() {
       const res = await fetch("/api/round3/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemId, code: code[problemId] ?? "" }),
+        body: JSON.stringify({ problemId, language: languages[problemId] ?? "python", code: code[problemId] ?? "" }),
       });
       const data = await res.json();
       if (res.ok) setRunResults((prev) => ({ ...prev, [problemId]: data }));
@@ -149,7 +181,11 @@ export default function Round3Page() {
     setError(null);
     try {
       const payload = {
-        solutions: Object.entries(code).map(([problemId, c]) => ({ problemId, code: c })),
+        solutions: Object.entries(code).map(([problemId, c]) => ({
+          problemId,
+          language: languages[problemId] ?? "python",
+          code: c,
+        })),
       };
       const res = await fetch("/api/round3/submit", {
         method: "POST",
@@ -206,10 +242,33 @@ export default function Round3Page() {
       <div className="space-y-6">
         {problems.map((p) => {
           const run = runResults[p.id];
+          const language = languages[p.id] ?? "python";
+          const starter = language === "java" ? JAVA_STARTER : PYTHON_STARTER;
           return (
             <div key={p.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
               <h2 className="font-medium">{p.title}</h2>
               <p className="whitespace-pre-wrap text-sm text-slate-300">{p.statement}</p>
+
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                Language
+                <select
+                  value={language}
+                  onChange={(e) => {
+                    const nextLanguage = e.target.value as "python" | "java";
+                    setLanguages((prev) => ({ ...prev, [p.id]: nextLanguage }));
+                    setCode((prev) => ({ ...prev, [p.id]: nextLanguage === "java" ? JAVA_STARTER : PYTHON_STARTER }));
+                    setRunResults((prev) => {
+                      const next = { ...prev };
+                      delete next[p.id];
+                      return next;
+                    });
+                  }}
+                  className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-200"
+                >
+                  <option value="python">Python 3</option>
+                  <option value="java">Java 17</option>
+                </select>
+              </label>
 
               <div>
                 <p className="mb-1 text-xs text-slate-500">
@@ -219,7 +278,7 @@ export default function Round3Page() {
                 <div className="space-y-1">
                   {p.visibleTestCases.map((tc, i) => (
                     <pre key={i} className="overflow-x-auto rounded bg-slate-950 p-2 text-xs text-slate-400">
-                      solve({tc.args.map((a) => JSON.stringify(a)).join(", ")}) → {JSON.stringify(tc.expectedOutput)}
+                      Input: {JSON.stringify(tc.stdin)} → Expected: {JSON.stringify(tc.expectedOutput)}
                     </pre>
                   ))}
                 </div>
@@ -227,7 +286,7 @@ export default function Round3Page() {
 
               <textarea
                 spellCheck={false}
-                value={code[p.id] ?? p.starterCode}
+                value={code[p.id] ?? starter}
                 onChange={(e) => setCode((prev) => ({ ...prev, [p.id]: e.target.value }))}
                 rows={14}
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-xs outline-none focus:border-indigo-500"
@@ -275,7 +334,7 @@ export default function Round3Page() {
       {showSubmitConfirmation && (
         <SubmitConfirmation
           unanswered={problems
-            .filter((p) => !(code[p.id] ?? p.starterCode).trim())
+            .filter((p) => !(code[p.id] ?? PYTHON_STARTER).trim())
             .map((p, index) => `Problem ${index + 1}: ${p.title}`)}
           onCancel={() => setShowSubmitConfirmation(false)}
           onConfirm={() => {

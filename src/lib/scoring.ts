@@ -112,7 +112,7 @@ export function computeRound2TotalScore(criteria: {
 
 // ---------------------------------------------------------------------------
 // ROUND 3 - CODE WAR (max 50)
-//   Problem Understanding      5  (auto - valid solve function submitted)
+//   Problem Understanding      5  (auto - executable solution submitted)
 //   Logic & Algorithm         15  (auto - test pass ratio)
 //   Correctness & Test Cases  15  (auto - fraction of test cases passed)
 //   Code Quality                5  (auto - executable solution)
@@ -138,10 +138,10 @@ export function computeRound3AutoScore(params: {
     totalCount > 0
       ? Number(((passedCount / totalCount) * ROUND3_MAX_MARKS.correctnessTestCases).toFixed(2))
       : 0;
-  const hasSolveFunction = /(?:function\s+solve\s*\(|(?:const|let|var)\s+solve\s*=)/.test(code);
-  const problemUnderstanding = code.trim() && hasSolveFunction ? ROUND3_MAX_MARKS.problemUnderstanding : 0;
+  const hasExecutableSubmission = code.trim().length > 0;
+  const problemUnderstanding = hasExecutableSubmission ? ROUND3_MAX_MARKS.problemUnderstanding : 0;
   const logicAlgorithm = correctnessTestCases;
-  const codeQuality = code.trim() && hasSolveFunction && totalCount > 0 ? ROUND3_MAX_MARKS.codeQuality : 0;
+  const codeQuality = hasExecutableSubmission && totalCount > 0 ? ROUND3_MAX_MARKS.codeQuality : 0;
   const averageDurationMs = totalCount > 0 ? totalDurationMs / totalCount : 3000;
   const timeSpaceOptimization = passedCount > 0
     ? Number((Math.max(0, Math.min(1, 1 - averageDurationMs / 3000)) * ROUND3_MAX_MARKS.timeSpaceOptimization).toFixed(2))
