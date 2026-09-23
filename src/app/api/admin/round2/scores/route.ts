@@ -21,7 +21,6 @@ export async function GET() {
     const payload = Array.isArray(s.payload) ? (s.payload as Array<{
       bugQuestionId?: string;
       fixedCode?: string;
-      bugExplanation?: string;
       outputMatched?: boolean;
     }>) : [];
     const questionById = new Map(bugQuestions.map((question) => [question.id, question]));
@@ -30,7 +29,6 @@ export async function GET() {
       return {
         outputMatched: item.outputMatched === true,
         codeChanged: !!question && (item.fixedCode ?? "").trim() !== question.buggyCode.trim(),
-        explanation: item.bugExplanation ?? "",
       };
     });
     const timeTakenSeconds = Math.max(0, (s.submittedAt.getTime() - (s.participant.contest.round2StartAt?.getTime() ?? s.submittedAt.getTime())) / 1000);

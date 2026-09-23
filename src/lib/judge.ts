@@ -11,6 +11,7 @@
 // future hardening step; this is the lightweight version of that for now.
 
 import { Script, createContext } from "vm";
+import { spawnSync } from "child_process";
 
 const DEFAULT_TIMEOUT_MS = 3000;
 
@@ -57,6 +58,50 @@ export function runScriptCapturingOutput(code: string, timeoutMs = DEFAULT_TIMEO
       durationMs: Date.now() - start,
     };
   }
+}
+
+export function runPythonScriptCapturingOutput(code: string, timeoutMs = DEFAULT_TIMEOUT_MS): RunResult {
+  const start = Date.now();
+  const pythonCommand = process.env.PYTHON_BIN ?? (process.platform === "win32" ? "python" : "python3");
+
+  const result = spawnSync(pythonCommand, ["-c", code], {
+    timeout: timeoutMs,
+    encoding: "utf-8",
+    env: process.env,
+  });
+
+  const output = (result.stdout ?? "").replace(/\r\n/g, "\n").trim();
+  const errorOutput = (result.stderr ?? "").replace(/\r\n/g, "\n").trim();
+  const timedOut = result.error?.message?.toLowerCase().includes("timed out") || result.signal === "SIGTERM";
+
+  if (result.error && !timedOut) {
+    return {
+      ok: false,
+      output,
+      error: cleanErrorMessage(result.error),
+      timedOut: false,
+      durationMs: Date.now() - start,
+    };
+  }
+
+  if (timedOut) {
+    return {
+      ok: false,
+      output,
+      error: "Time limit exceeded.",
+      timedOut: true,
+      durationMs: Date.now() - start,
+    };
+  }
+
+  const ok = result.status === 0;
+  return {
+    ok,
+    output,
+    error: ok ? null : (errorOutput || "Python execution failed."),
+    timedOut: false,
+    durationMs: Date.now() - start,
+  };
 }
 
 export type TestCase = { args: unknown[]; expectedOutput: unknown; hidden?: boolean };

@@ -34,7 +34,7 @@ function reportAudit(type: string) {
 export default function Round2Page() {
   const [status, setStatus] = useState<Status | null>(null);
   const [questions, setQuestions] = useState<BugQuestion[] | null>(null);
-  const [fixes, setFixes] = useState<Record<string, { code: string; explanation: string }>>({});
+  const [fixes, setFixes] = useState<Record<string, string>>({});
   const [testResults, setTestResults] = useState<
     Record<string, { output: string | null; matched: boolean | null; error: string | null }>
   >({});
@@ -66,7 +66,7 @@ export default function Round2Page() {
       setFixes((prev) => {
         const next = { ...prev };
         for (const q of data.bugQuestions as BugQuestion[]) {
-          if (!next[q.id]) next[q.id] = { code: q.buggyCode, explanation: "" };
+          if (!next[q.id]) next[q.id] = q.buggyCode;
         }
         return next;
       });
@@ -128,7 +128,7 @@ export default function Round2Page() {
       const res = await fetch("/api/round2/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bugQuestionId: questionId, code: fixes[questionId]?.code ?? "" }),
+        body: JSON.stringify({ bugQuestionId: questionId, code: fixes[questionId] ?? "" }),
       });
       const data = await res.json();
       setTestResults((prev) => ({ ...prev, [questionId]: data }));
@@ -144,10 +144,9 @@ export default function Round2Page() {
     setError(null);
     try {
       const payload = {
-        fixes: Object.entries(fixes).map(([bugQuestionId, v]) => ({
+        fixes: Object.entries(fixes).map(([bugQuestionId, code]) => ({
           bugQuestionId,
-          fixedCode: v.code,
-          bugExplanation: v.explanation,
+          fixedCode: code,
         })),
       };
       const res = await fetch("/api/round2/submit", {
@@ -206,7 +205,7 @@ export default function Round2Page() {
 
       <div className="space-y-6">
         {questions.map((q, idx) => {
-          const fix = fixes[q.id] ?? { code: q.buggyCode, explanation: "" };
+          const code = fixes[q.id] ?? q.buggyCode;
           const result = testResults[q.id];
           return (
             <div key={q.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
@@ -227,42 +226,28 @@ export default function Round2Page() {
                 <p className="mb-1 text-xs text-slate-500">Your fixed code</p>
                 <textarea
                   spellCheck={false}
-                  value={fix.code}
+                  value={code}
                   onChange={(e) =>
-                    setFixes((prev) => ({ ...prev, [q.id]: { ...fix, code: e.target.value } }))
+                    setFixes((prev) => ({ ...prev, [q.id]: e.target.value }))
                   }
-                  rows={8}
+                  rows={12}
                   className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 font-mono text-xs outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <p className="mb-1 text-xs text-slate-500">
-                  What was the bug? (briefly explain — this is graded)
-                </p>
-                <textarea
-                  value={fix.explanation}
-                  onChange={(e) =>
-                    setFixes((prev) => ({ ...prev, [q.id]: { ...fix, explanation: e.target.value } }))
-                  }
-                  rows={2}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-sm outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleTest(q.id)}
-                  disabled={testing[q.id] || q.language.toLowerCase() !== "javascript"}
+                  disabled={testing[q.id] || q.language.toLowerCase() !== "python"}
                   className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium hover:bg-slate-600 disabled:opacity-50"
                 >
                   {testing[q.id]
                     ? "Running..."
-                    : q.language.toLowerCase() === "javascript"
-                    ? "Test my fix"
+                    : q.language.toLowerCase() === "python"
+                    ? "Run & debug"
                     : "Manual grading"}
                 </button>
-                {q.language.toLowerCase() !== "javascript" && (
+                {q.language.toLowerCase() !== "python" && (
                   <span className="text-xs text-slate-500">
                     {q.language} submissions are reviewed by the admin.
                   </span>
@@ -295,7 +280,7 @@ export default function Round2Page() {
       {showSubmitConfirmation && (
         <SubmitConfirmation
           unanswered={questions
-            .filter((q) => !fixes[q.id]?.code.trim() || !fixes[q.id]?.explanation.trim())
+            .filter((q) => !String(fixes[q.id] ?? "").trim())
             .map((q, index) => `Bug ${index + 1}: ${q.title}`)}
           onCancel={() => setShowSubmitConfirmation(false)}
           onConfirm={() => {

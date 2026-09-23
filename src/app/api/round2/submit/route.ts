@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireParticipant } from "@/lib/auth";
 import { computeRound2AutoScore } from "@/lib/scoring";
-import { runScriptCapturingOutput } from "@/lib/judge";
+import { runPythonScriptCapturingOutput, runScriptCapturingOutput } from "@/lib/judge";
 
-type IncomingFix = { bugQuestionId: string; fixedCode: string; bugExplanation?: string };
+type IncomingFix = { bugQuestionId: string; fixedCode: string };
 
 export async function POST(req: NextRequest) {
   const session = await requireParticipant();
@@ -59,30 +59,24 @@ export async function POST(req: NextRequest) {
   const bugQuestions = await prisma.bugQuestion.findMany({ where: { contestId: contest.id } });
   const questionById = new Map(bugQuestions.map((q) => [q.id, q]));
 
-  const cleanedFixes = new Map<string, { fixedCode: string; bugExplanation: string }>();
+  const cleanedFixes = new Map<string, string>();
   for (const f of rawFixes) {
     if (typeof f?.bugQuestionId === "string" && questionById.has(f.bugQuestionId) && typeof f?.fixedCode === "string") {
-      cleanedFixes.set(f.bugQuestionId, {
-        fixedCode: f.fixedCode.slice(0, 20000), // guard against absurdly large payloads
-        bugExplanation: typeof f.bugExplanation === "string" ? f.bugExplanation.slice(0, 2000) : "",
-      });
+      cleanedFixes.set(f.bugQuestionId, f.fixedCode.slice(0, 20000));
     }
   }
 
-  // Run each JS fix through the sandbox and compare its output to the
-  // expected output. The submission is fully graded from these objective
-  // results plus whether the participant supplied a meaningful explanation.
+  // Run each Python fix through the language-appropriate sandbox and compare
+  // its output to the expected result. Explanations are intentionally not used.
   const payloadItems = bugQuestions.map((q) => {
-    const fix = cleanedFixes.get(q.id);
-    const fixedCode = fix?.fixedCode ?? "";
-    const bugExplanation = fix?.bugExplanation ?? "";
+    const fixedCode = cleanedFixes.get(q.id) ?? "";
 
     let actualOutput: string | null = null;
     let outputMatched = false;
     let runError: string | null = null;
 
-    if (fixedCode.trim() && q.language === "javascript") {
-      const result = runScriptCapturingOutput(fixedCode);
+    if (fixedCode.trim()) {
+      const result = q.language === "python" ? runPythonScriptCapturingOutput(fixedCode) : runScriptCapturingOutput(fixedCode);
       actualOutput = result.output;
       runError = result.error;
       outputMatched = result.ok && result.output.trim() === q.expectedOutput.trim();
@@ -92,7 +86,6 @@ export async function POST(req: NextRequest) {
       bugQuestionId: q.id,
       title: q.title,
       fixedCode,
-      bugExplanation,
       codeChanged: fixedCode.trim() !== q.buggyCode.trim(),
       actualOutput,
       runError,
@@ -106,7 +99,6 @@ export async function POST(req: NextRequest) {
     bugQuestionResults: payloadItems.map((p) => ({
       outputMatched: p.outputMatched,
       codeChanged: p.codeChanged,
-      explanation: p.bugExplanation,
     })),
     timeTakenSeconds,
     durationSeconds: contest.round2DurationSeconds,

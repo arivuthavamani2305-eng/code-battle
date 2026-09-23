@@ -39,7 +39,7 @@ function timeEfficiencyScore(timeTakenSeconds: number, durationSeconds: number, 
 
 // ---------------------------------------------------------------------------
 // ROUND 2 - BUG WARFARE (max 30)
-//   Bug Identification        10  (auto - meaningful written explanation)
+//   Bug Fix Quality            10  (auto - code changed in a meaningful way)
 //   Correctness of Fix        10  (auto - fixed output matches expected output)
 //   Expected Output             5  (auto - fixed code's output matches exactly)
 //   Time Efficiency             5  (auto - same time-remaining formula as Round 1)
@@ -55,19 +55,17 @@ export const ROUND2_MAX_MARKS = {
 // Called once at submit time. Both formerly manual pieces are derived from
 // objective submission signals so every Round 2 submission is graded immediately.
 export function computeRound2AutoScore(params: {
-  bugQuestionResults: { outputMatched: boolean; codeChanged: boolean; explanation: string }[];
+  bugQuestionResults: { outputMatched: boolean; codeChanged: boolean }[];
   timeTakenSeconds: number;
   durationSeconds: number;
 }) {
   const { bugQuestionResults, timeTakenSeconds, durationSeconds } = params;
 
   const matchedCount = bugQuestionResults.filter((r) => r.outputMatched).length;
+  const changedCount = bugQuestionResults.filter((r) => r.codeChanged).length;
   const totalCount = bugQuestionResults.length;
-  const identifiedCount = bugQuestionResults.filter(
-    (r) => r.explanation.trim().length >= 3
-  ).length;
   const bugIdentification = totalCount > 0
-    ? Number(((identifiedCount / totalCount) * ROUND2_MAX_MARKS.bugIdentification).toFixed(2))
+    ? Number(((changedCount / totalCount) * ROUND2_MAX_MARKS.bugIdentification).toFixed(2))
     : 0;
   const correctnessOfFix = totalCount > 0
     ? Number(((matchedCount / totalCount) * ROUND2_MAX_MARKS.correctnessOfFix).toFixed(2))

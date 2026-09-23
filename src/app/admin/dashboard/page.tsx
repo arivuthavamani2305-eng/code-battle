@@ -27,7 +27,6 @@ type Round2Payload = {
   bugQuestionId: string;
   title: string;
   fixedCode: string;
-  bugExplanation: string;
   actualOutput: string | null;
   runError: string | null;
   outputMatched: boolean;
@@ -655,7 +654,7 @@ function Round2Section({ rows }: { rows: Round2Row[] | null }) {
                                 {item.fixedCode}
                               </pre>
                               <p className="text-xs text-slate-500">
-                                Explanation: <span className="text-slate-300">{item.bugExplanation || "(none given)"}</span>
+                                Output: <span className="text-slate-300">{item.actualOutput ?? "(no output)"}</span>
                               </p>
                             </div>
                           ))}

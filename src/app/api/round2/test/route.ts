@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireParticipant } from "@/lib/auth";
-import { runScriptCapturingOutput } from "@/lib/judge";
+import { runPythonScriptCapturingOutput } from "@/lib/judge";
 
 export async function POST(req: NextRequest) {
   const session = await requireParticipant();
@@ -50,15 +50,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Question not found." }, { status: 404 });
   }
 
-  if (bugQuestion.language !== "javascript") {
+  if (bugQuestion.language !== "python") {
     return NextResponse.json({
       output: null,
       matched: null,
-      error: "Live testing is only available for JavaScript snippets in this demo. Your fix will still be graded manually.",
+      error: "Live testing is only available for Python snippets in this round.",
     });
   }
 
-  const result = runScriptCapturingOutput(code);
+  const result = runPythonScriptCapturingOutput(code);
   const matched = result.ok && result.output.trim() === bugQuestion.expectedOutput.trim();
 
   return NextResponse.json({
