@@ -71,7 +71,12 @@ git push -u origin main
 2. Click **Add New → Project**, and import the `code-battle-demo` repo you
    just pushed.
 3. Before clicking Deploy, open **Environment Variables** and add:
-   - `DATABASE_URL` → the Neon connection string from step 3
+   - `DATABASE_URL` → the Neon **pooled** connection string from step 3
+     (the hostname must contain `-pooler`)
+   - `DB_CONNECTION_LIMIT` → optional per-function-instance pool limit;
+     use `5` for the competition (the application default)
+   - `DB_POOL_TIMEOUT_SECONDS` → optional pool wait timeout (default `20`)
+   - `DB_CONNECT_TIMEOUT_SECONDS` → optional connection timeout (default `10`)
    - `AUTH_SECRET` → any long random string (generate one at
      https://generate-secret.vercel.app/32 or run `openssl rand -base64 32`)
    - `ADMIN_PASSWORD` → a password you choose for the admin dashboard
