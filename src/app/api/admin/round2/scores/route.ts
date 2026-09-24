@@ -15,15 +15,26 @@ export async function GET() {
     orderBy: { submittedAt: "asc" },
   });
 
+  const contestIds = [...new Set(submissions.map((submission) => submission.participant.contestId))];
+  const bugQuestions = await prisma.bugQuestion.findMany({
+    where: { contestId: { in: contestIds } },
+  });
+  const questionsByContestId = new Map<string, typeof bugQuestions>();
+  for (const question of bugQuestions) {
+    const questions = questionsByContestId.get(question.contestId) ?? [];
+    questions.push(question);
+    questionsByContestId.set(question.contestId, questions);
+  }
+
   const rows = (await Promise.all(submissions.map(async (s) => {
     const existing = (s.criteriaScores as Record<string, number | null> | null) ?? {};
-    const bugQuestions = await prisma.bugQuestion.findMany({ where: { contestId: s.participant.contestId } });
+    const contestQuestions = questionsByContestId.get(s.participant.contestId) ?? [];
     const payload = Array.isArray(s.payload) ? (s.payload as Array<{
       bugQuestionId?: string;
       fixedCode?: string;
       outputMatched?: boolean;
     }>) : [];
-    const questionById = new Map(bugQuestions.map((question) => [question.id, question]));
+    const questionById = new Map(contestQuestions.map((question) => [question.id, question]));
     const results = payload.map((item) => {
       const question = item.bugQuestionId ? questionById.get(item.bugQuestionId) : undefined;
       return {

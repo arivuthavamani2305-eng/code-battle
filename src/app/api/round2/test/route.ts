@@ -19,7 +19,11 @@ export async function POST(req: NextRequest) {
 
   const participant = await prisma.participant.findUnique({
     where: { id: session.sub },
-    include: { contest: true, submissions: { where: { round: 2 } } },
+    select: {
+      disqualified: true,
+      contest: true,
+      submissions: { where: { round: 2 }, select: { round: true } },
+    },
   });
 
   if (!participant) {

@@ -10,9 +10,10 @@ export async function GET() {
 
   const participant = await prisma.participant.findUnique({
     where: { id: session.sub },
-    include: {
+    select: {
+      disqualified: true,
       contest: true,
-      submissions: { where: { round: { in: [2, 3] } } },
+      submissions: { where: { round: { in: [2, 3] } }, select: { round: true } },
     },
   });
 

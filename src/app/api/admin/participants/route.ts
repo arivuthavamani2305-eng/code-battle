@@ -15,7 +15,13 @@ export async function GET() {
 
   const participants = await prisma.participant.findMany({
     orderBy: { createdAt: "asc" },
-    include: { submissions: { where: { round: 1 } } },
+    select: {
+      id: true,
+      name: true,
+      accessCode: true,
+      disqualified: true,
+      submissions: { where: { round: 1 }, select: { round: true } },
+    },
   });
 
   return NextResponse.json({

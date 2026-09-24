@@ -11,7 +11,12 @@ export async function GET() {
 
   const participant = await prisma.participant.findUnique({
     where: { id: session.sub },
-    include: { contest: true, submissions: { where: { round: 1 } } },
+    select: {
+      id: true,
+      disqualified: true,
+      contest: true,
+      submissions: { where: { round: 1 }, select: { round: true } },
+    },
   });
 
   if (!participant) {
